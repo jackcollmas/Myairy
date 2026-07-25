@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "start": "tsx server.ts"
+    "build": "echo 'No build needed'",
+    "start": "npx tsx server.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
