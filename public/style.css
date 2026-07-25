@@ -397,11 +397,54 @@ header h2 {
   transition: background-color 0.2s ease;
 }
 
+/* Journal Card Styles */
+.journal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.journal-header > div:first-child {
+  flex: 1;
+}
+
+.journal-header h3 {
+  margin: 0 0 0.5rem 0;
+}
+
+.journal-header p {
+  margin: 0;
+}
+
+.journal-actions {
+  display: flex;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.journal-card:hover .journal-actions {
+  opacity: 1;
+}
+
+.journal-delete-btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 1rem;
+  border-radius: 4px;
+  background: none;
+  transition: background-color 0.2s ease;
+}
+
 .persona-edit-btn:hover {
   background-color: rgba(0, 0, 0, 0.05);
 }
 
 .persona-delete-btn:hover {
+  background-color: rgba(204, 0, 0, 0.1);
+}
+
+.journal-delete-btn:hover {
   background-color: rgba(204, 0, 0, 0.1);
 }
 

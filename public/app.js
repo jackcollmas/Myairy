@@ -810,14 +810,37 @@ document.addEventListener('DOMContentLoaded', () => {
     journalsList.innerHTML = '';
     currentJournals.forEach(journal => {
       const card = document.createElement('div');
-      card.className = 'card';
+      card.className = 'card journal-card';
       if (journal.isSpecial) card.classList.add('starred-card');
       card.innerHTML = `
-        <h3>${journal.title} ${journal.isSpecial ? '<span class="star-badge"><i class="fas fa-star"></i></span>' : ''}</h3>
-        <p>${new Date(journal.date).toLocaleDateString()} &middot; ${journal.messages.length} messages</p>
+        <div class="journal-header">
+          <div>
+            <h3>${journal.title} ${journal.isSpecial ? '<span class="star-badge"><i class="fas fa-star"></i></span>' : ''}</h3>
+            <p>${new Date(journal.date).toLocaleDateString()} &middot; ${journal.messages.length} messages</p>
+          </div>
+          <div class="journal-actions">
+            <button class="icon-btn journal-delete-btn" data-id="${journal.id}" title="Delete journal"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
       `;
-      card.addEventListener('click', () => openJournal(journal.id));
+      
+      // Click on card (but not on buttons) to open journal
+      card.addEventListener('click', (e) => {
+        if (!e.target.closest('.journal-delete-btn')) {
+          openJournal(journal.id);
+        }
+      });
+      
       journalsList.appendChild(card);
+    });
+
+    // Add event listeners for delete buttons
+    document.querySelectorAll('.journal-delete-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const journalId = btn.getAttribute('data-id');
+        confirmDeleteJournal(journalId);
+      });
     });
   }
 
@@ -1671,6 +1694,53 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (e) {
         console.error('Failed to delete persona:', e);
         alert('Failed to delete persona. Please try again.');
+      }
+    });
+  }
+
+  // Delete Journal Handler with Confirmation
+  function confirmDeleteJournal(journalId) {
+    const journal = currentJournals.find(j => j.id === journalId);
+    if (!journal) return;
+
+    showModal(`
+      <h2>Delete Journal</h2>
+      <p style="margin-bottom: 1.5rem;">Are you sure you want to delete <strong>"${journal.title}"</strong>?</p>
+      <p style="color: var(--gray-text); font-size: 0.9rem; margin-bottom: 1.5rem;">This action cannot be undone. All messages in this journal will be permanently deleted.</p>
+      <div class="modal-actions">
+        <button id="cancel-delete-journal" class="icon-btn">Cancel</button>
+        <button id="confirm-delete-journal" class="primary-btn" style="background-color: #cc0000;">Delete Journal</button>
+      </div>
+    `);
+
+    document.getElementById('cancel-delete-journal').addEventListener('click', hideModal);
+    document.getElementById('confirm-delete-journal').addEventListener('click', async () => {
+      try {
+        const res = await fetch(`/api/journals/${journalId}`, {
+          method: 'DELETE'
+        });
+
+        if (res.ok) {
+          hideModal();
+          
+          // If we're currently viewing this journal, go back to dashboard
+          if (activeJournalId === journalId) {
+            activeJournalId = null;
+            showView('dashboard');
+          }
+          
+          // Reload journals and dashboard
+          await loadJournals();
+          if (viewDashboard.classList.contains('active')) {
+            loadDashboard();
+          }
+        } else {
+          const error = await res.json();
+          alert(`Failed to delete journal: ${error.error || 'Unknown error'}`);
+        }
+      } catch (e) {
+        console.error('Failed to delete journal:', e);
+        alert('Failed to delete journal. Please try again.');
       }
     });
   }
