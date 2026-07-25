@@ -1,0 +1,10 @@
+{
+  "framework": null,
+  "outputDirectory": "public",
+  "rewrites": [
+    {
+      "source": "/api/:match*",
+      "destination": "https://myairy.onrender.com/api/:match*"
+    }
+  ]
+}

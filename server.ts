@@ -6,6 +6,7 @@ import Groq from 'groq-sdk';
 import dotenv from 'dotenv';
 import { v2 as cloudinary } from 'cloudinary';
 import multer from 'multer';
+import cors from 'cors';
 
 dotenv.config();
 
@@ -63,6 +64,7 @@ const upload = multer({
 
 async function startServer() {
   const app = express();
+  app.use(cors());
   app.use(express.json());
 
   // --- API ROUTES ---

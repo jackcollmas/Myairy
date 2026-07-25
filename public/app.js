@@ -324,7 +324,6 @@ document.addEventListener('DOMContentLoaded', () => {
       currentJournals = await journalsRes.json();
       currentPersonas = await personasRes.json();
       renderJournals();
-      updatePersonaSelector();
     } catch (e) {
       console.error('Failed to load dashboard data');
     }
@@ -509,11 +508,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Render paginated results
     renderSearchResults(query);
-  } // Sort by relevance (highest first)
-    results.sort((a, b) => b.relevance - a.relevance);
-
-    // Render results
-    renderSearchResults(results, query);
   }
 
   // Calculate relevance score
@@ -531,6 +525,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Persona name match
     if (personaName.includes(query)) score += 10;
+
+    // Recent messages get slight boost
+    const age = Date.now() - new Date(message.timestamp).getTime();
+    const daysSince = age / (1000 * 60 * 60 * 24);
+    score += Math.max(0, 10 - daysSince);
+
+    return score;
+  }
+
   // Render Search Results
   function renderSearchResults(query) {
     const totalResults = searchResultsCache.length;
@@ -663,15 +666,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (currentSearchPage > 1) {
       searchResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  }   // Add click handler to go to message
-      const actionBtn = card.querySelector('.search-result-action');
-      actionBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        goToMessage(journal.id, message.id);
-      });
-
-      searchResults.appendChild(card);
-    });
   }
 
   // Highlight search query in text
