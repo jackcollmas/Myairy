@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import path from 'path';
-import { dbService } from './server/db';
+import { dbService } from './server/db.js';
 import Groq from 'groq-sdk';
 import dotenv from 'dotenv';
 import { v2 as cloudinary } from 'cloudinary';
