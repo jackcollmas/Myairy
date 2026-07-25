@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Myairy</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- PIN Lock Screen -->
+  <div id="lock-screen" class="view active">
+    <div class="lock-container">
+      <h1>Myairy</h1>
+      <p>Enter your PIN to continue</p>
+      <input type="password" id="pin-input" maxlength="4" placeholder="••••" inputmode="numeric" pattern="[0-9]*">
+      <p id="lock-error" class="error"></p>
+    </div>
+  </div>
+
+  <!-- Main Application -->
+  <div id="app" class="view hidden">
+    <!-- Mobile Menu Button -->
+    <button id="mobile-menu-btn" class="icon-btn mobile-only" title="Toggle Menu">
+      <i class="fas fa-bars"></i>
+    </button>
+
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div style="display: flex; align-items: center;">
+          <img src="logo.png" alt="Logo" class="logo" style="width: 24px; height: 24px; object-fit: contain; margin-right: 8px;">
+          <h2>Myairy</h2>
+        </div>
+        <button id="desktop-collapse-btn" class="icon-btn desktop-only" title="Collapse Sidebar">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+      </div>
+      <nav>
+        <button id="nav-dashboard" class="nav-btn active"><i class="fas fa-home"></i> <span>Dashboard</span></button>
+        <button id="nav-chat" class="nav-btn"><i class="fas fa-comments"></i> <span>Chat</span></button>
+        <button id="nav-personas" class="nav-btn"><i class="fas fa-users"></i> <span>Personas</span></button>
+        <button id="nav-search" class="nav-btn"><i class="fas fa-search"></i> <span>Search</span></button>
+      </nav>
+      <div class="sidebar-footer">
+        <button id="lock-app-btn" class="nav-btn"><i class="fas fa-lock"></i> Lock</button>
+      </div>
+    </aside>
+
+    <main class="content">
+      <!-- Dashboard View -->
+      <section id="view-dashboard" class="sub-view active">
+        <header>
+          <h2>Recent Journals</h2>
+          <div style="display: flex; gap: 0.5rem;">
+            <button id="dark-mode-toggle" class="icon-btn" title="Toggle Dark Mode"><i class="fas fa-moon"></i></button>
+            <button id="new-journal-btn" class="primary-btn">+ New Entry</button>
+          </div>
+        </header>
+        <div id="journals-list" class="journals-list">
+          <!-- Journals injected here -->
+        </div>
+      </section>
+
+      <!-- Personas View -->
+      <section id="view-personas" class="sub-view hidden">
+        <header>
+          <h2>Manage Personas</h2>
+          <button id="new-persona-btn" class="primary-btn">+ Add Persona</button>
+        </header>
+        <div id="personas-list" class="personas-list">
+          <!-- Personas injected here -->
+        </div>
+      </section>
+
+      <!-- Search View -->
+      <section id="view-search" class="sub-view hidden">
+        <header>
+          <h2>Search Messages</h2>
+        </header>
+        
+        <div class="search-container">
+          <div class="search-input-wrapper">
+            <input type="text" id="search-input" placeholder="Search across all journals..." class="search-input">
+            <button id="clear-search-btn" class="icon-btn" style="display: none;">✕</button>
+          </div>
+          
+          <div class="search-filters">
+            <select id="search-persona-filter">
+              <option value="">All Personas</option>
+            </select>
+            <select id="search-journal-filter">
+              <option value="">All Journals</option>
+            </select>
+            <label class="search-checkbox">
+              <input type="checkbox" id="search-images-only">
+              <span>Images only</span>
+            </label>
+            <label class="search-checkbox">
+              <input type="checkbox" id="search-with-reactions">
+              <span>With reactions</span>
+            </label>
+          </div>
+        </div>
+
+        <div id="search-stats" class="search-stats hidden">
+          Found <strong id="search-count">0</strong> messages
+        </div>
+
+        <div id="search-results" class="search-results">
+          <div class="search-empty">
+            <p><i class="fas fa-search"></i> Start typing to search across all your journal messages</p>
+            <p style="color: var(--gray-text); font-size: 0.9rem; margin-top: 0.5rem;">
+              Search by content, persona name, or date
+            </p>
+          </div>
+        </div>
+        
+        <!-- Pagination Controls -->
+        <div id="search-pagination" class="pagination-controls hidden">
+          <button id="prev-page-btn" class="pagination-btn" disabled>
+            <i class="fas fa-chevron-left"></i> Previous
+          </button>
+          <div class="pagination-info">
+            Page <span id="current-page">1</span> of <span id="total-pages">1</span>
+            <span class="pagination-divider">|</span>
+            Showing <span id="results-range">1-10</span> of <span id="total-results">0</span>
+          </div>
+          <button id="next-page-btn" class="pagination-btn">
+            Next <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      </section>
+
+      <!-- Journal Entry View -->
+      <section id="view-entry" class="sub-view hidden">
+        <header class="entry-header">
+          <div>
+            <h2 id="entry-title" contenteditable="true" spellcheck="false" title="Click to edit title">Journal Title</h2>
+            <p id="entry-date">Date</p>
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button id="toggle-star-btn" class="icon-btn" title="Mark as Special"><i class="far fa-star"></i></button>
+            <button id="back-to-dashboard" class="icon-btn"><i class="fas fa-arrow-left"></i> Back</button>
+          </div>
+        </header>
+        
+        <div class="entry-messages" id="entry-messages">
+          <!-- Messages injected here -->
+        </div>
+
+        <div class="entry-composer">
+          <!-- Attachment Preview Area (for images and replies) -->
+          <div id="attachment-preview" class="attachment-preview hidden">
+            <div class="attachment-preview-content">
+              <!-- Image preview -->
+              <div id="image-attachment" class="image-attachment hidden">
+                <img id="attachment-image" src="" alt="Preview" class="attachment-image">
+                <div class="attachment-overlay">
+                  <span class="attachment-status"><i class="fas fa-upload"></i> Uploading...</span>
+                </div>
+                <button id="remove-image-btn" class="remove-attachment-btn" title="Remove image"><i class="fas fa-times"></i></button>
+              </div>
+              
+              <!-- Reply preview -->
+              <div id="reply-attachment" class="reply-attachment hidden">
+                <div class="reply-attachment-indicator"><i class="fas fa-reply"></i></div>
+                <div class="reply-attachment-content">
+                  <div class="reply-attachment-author" id="reply-author"></div>
+                  <div class="reply-attachment-text" id="reply-text"></div>
+                </div>
+                <button id="remove-reply-btn" class="remove-attachment-btn" title="Cancel reply"><i class="fas fa-times"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="composer-input-row" style="position: relative;">
+            <div id="mentions-dropdown" class="mentions-dropdown hidden"></div>
+            <input type="text" id="message-input" placeholder="What's on your mind? (Type @ to tag)">
+            <input type="file" id="image-input" accept="image/*" style="display: none;">
+            <button id="image-upload-btn" class="icon-btn" title="Upload Image"><i class="fas fa-camera"></i></button>
+            <button id="send-message-btn" class="primary-btn">Send</button>
+          </div>
+        </div>
+        
+        <!-- Message Context Menu -->
+        <div id="message-context-menu" class="message-context-menu hidden">
+          <button class="context-menu-item" data-action="react">
+            <span class="context-menu-icon"><i class="far fa-smile"></i></span>
+            <span>React</span>
+          </button>
+          <button class="context-menu-item" data-action="reply">
+            <span class="context-menu-icon"><i class="fas fa-reply"></i></span>
+            <span>Reply</span>
+          </button>
+          <button class="context-menu-item" data-action="edit">
+            <span class="context-menu-icon"><i class="fas fa-pen"></i></span>
+            <span>Edit</span>
+          </button>
+          <button class="context-menu-item context-menu-danger" data-action="delete">
+            <span class="context-menu-icon"><i class="fas fa-trash"></i></span>
+            <span>Delete</span>
+          </button>
+        </div>
+        
+        <!-- Reaction Picker -->
+        <div id="reaction-picker" class="reaction-picker hidden">
+          <button class="reaction-btn" data-emoji="👍">👍</button>
+          <button class="reaction-btn" data-emoji="❤️">❤️</button>
+          <button class="reaction-btn" data-emoji="😂">😂</button>
+          <button class="reaction-btn" data-emoji="😮">😮</button>
+          <button class="reaction-btn" data-emoji="😢">😢</button>
+          <button class="reaction-btn" data-emoji="🙏">🙏</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal -->
+  <div id="modal-overlay" class="hidden">
+    <div id="modal-content" class="modal">
+      <!-- Modal content injected dynamically -->
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

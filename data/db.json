@@ -1,0 +1,134 @@
+{
+  "personas": [
+    {
+      "id": "persona_work",
+      "name": "Work Me",
+      "color": "#000000",
+      "avatarIcon": "💼",
+      "description": "Professional focus, projects, deadlines, and career wins",
+      "createdAt": "2026-07-24T22:49:04.106Z"
+    },
+    {
+      "id": "persona_personal",
+      "name": "Personal Me",
+      "color": "#333333",
+      "avatarIcon": "🌿",
+      "description": "Personal reflections, feelings, family, and well-being",
+      "createdAt": "2026-07-24T22:49:04.288Z"
+    },
+    {
+      "id": "persona_playtime",
+      "name": "Playtime Me",
+      "color": "#666666",
+      "avatarIcon": "🎮",
+      "description": "Hobbies, fun moments, games, entertainment, and creative ideas",
+      "createdAt": "2026-07-24T22:49:04.288Z"
+    },
+    {
+      "id": "persona_1784934977935_ha3v5",
+      "name": "Creative Me",
+      "color": "#000000",
+      "avatarIcon": "😭",
+      "description": "",
+      "createdAt": "2026-07-24T23:16:17.935Z"
+    }
+  ],
+  "journals": [
+    {
+      "id": "journal_welcome",
+      "title": "First Collective Journal",
+      "date": "2026-07-24",
+      "isSpecial": true,
+      "specialNote": "App launch day - started journaling with my inner personas!",
+      "messages": [
+        {
+          "id": "msg_1",
+          "personaId": "persona_work",
+          "personaName": "Work Me",
+          "personaColor": "#000000",
+          "content": "Finished setting up our new minimalist journal app today! Ready to track our daily goals.",
+          "timestamp": "2026-07-24T19:49:04.288Z"
+        },
+        {
+          "id": "msg_2",
+          "personaId": "persona_personal",
+          "personaName": "Personal Me",
+          "personaColor": "#333333",
+          "content": "I love how clean this looks. It feels like we are all talking in a private group chat.",
+          "timestamp": "2026-07-24T20:49:04.288Z"
+        },
+        {
+          "id": "msg_1784934985879",
+          "personaId": "persona_1784934977935_ha3v5",
+          "personaName": "Creative Me",
+          "personaColor": "#000000",
+          "content": "Hi",
+          "timestamp": "2026-07-24T23:16:25.879Z"
+        },
+        {
+          "id": "msg_1784935735375",
+          "personaId": "persona_work",
+          "personaName": "Work Me",
+          "personaColor": "#000000",
+          "content": "hi",
+          "timestamp": "2026-07-24T23:28:55.375Z"
+        },
+        {
+          "id": "msg_1784935739398",
+          "personaId": "persona_1784934977935_ha3v5",
+          "personaName": "Creative Me",
+          "personaColor": "#000000",
+          "content": "hi",
+          "timestamp": "2026-07-24T23:28:59.398Z"
+        },
+        {
+          "id": "msg_1784966080757",
+          "personaId": "persona_work",
+          "personaName": "Work Me",
+          "personaColor": "#000000",
+          "personaIcon": "💼",
+          "content": "@whats up",
+          "timestamp": "2026-07-25T07:54:40.757Z"
+        },
+        {
+          "id": "msg_1784966082114",
+          "personaId": "ai_assistant",
+          "personaName": "AI Assistant",
+          "personaColor": "#4a90e2",
+          "personaIcon": "🤖",
+          "content": "Not much! Just getting everyone on the same page. Personal Me, how's the mindset today? Feeling focused or needing a boost?",
+          "timestamp": "2026-07-25T07:54:42.113Z"
+        },
+        {
+          "id": "msg_1784966112521",
+          "personaId": "persona_work",
+          "personaName": "Work Me",
+          "personaColor": "#000000",
+          "personaIcon": "💼",
+          "content": "@everyone is just saying hi",
+          "timestamp": "2026-07-25T07:55:12.521Z"
+        },
+        {
+          "id": "msg_1784966113746",
+          "personaId": "ai_assistant",
+          "personaName": "AI Assistant",
+          "personaColor": "#4a90e2",
+          "personaIcon": "🤖",
+          "content": "It seems like everyone's just dropping in to say hello. I'll wait for someone to start a conversation or share their thoughts. Whenever you're ready, I'm here to listen and help.",
+          "timestamp": "2026-07-25T07:55:13.745Z"
+        },
+        {
+          "id": "msg_1784966494786",
+          "personaId": "persona_work",
+          "personaName": "Work Me",
+          "personaColor": "#000000",
+          "personaIcon": "💼",
+          "content": "Hi",
+          "timestamp": "2026-07-25T08:01:34.786Z"
+        }
+      ],
+      "createdAt": "2026-07-24T19:49:04.288Z",
+      "updatedAt": "2026-07-25T08:02:28.338Z"
+    }
+  ]
+}
