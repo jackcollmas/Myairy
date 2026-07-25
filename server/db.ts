@@ -24,7 +24,6 @@ const DEFAULT_PERSONAS: Persona[] = [
     name: 'Work Me',
     color: '#000000', // Black
     avatarIcon: '💼',
-    description: 'Professional focus, projects, deadlines, and career wins',
     createdAt: new Date().toISOString(),
   },
   {
@@ -32,7 +31,6 @@ const DEFAULT_PERSONAS: Persona[] = [
     name: 'Personal Me',
     color: '#333333', // Dark Gray
     avatarIcon: '🌿',
-    description: 'Personal reflections, feelings, family, and well-being',
     createdAt: new Date().toISOString(),
   },
   {
@@ -40,7 +38,6 @@ const DEFAULT_PERSONAS: Persona[] = [
     name: 'Playtime Me',
     color: '#666666', // Gray
     avatarIcon: '🎮',
-    description: 'Hobbies, fun moments, games, entertainment, and creative ideas',
     createdAt: new Date().toISOString(),
   },
 ];
@@ -173,7 +170,6 @@ class DatabaseService {
         name: p.name,
         color: p.color,
         avatarIcon: p.avatarIcon,
-        description: p.description,
         createdAt: p.createdAt,
       }));
     } else {
