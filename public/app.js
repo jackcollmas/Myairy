@@ -1405,10 +1405,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function resetMessageInput() {
     messageInput.value = '@';
-    mentionActive = true;
+    mentionActive = false;
     mentionQuery = '';
     updateMentionsDropdown();
   }
+
+  // Show dropdown when focusing the input if there's an @
+  messageInput.addEventListener('focus', () => {
+    messageInput.dispatchEvent(new Event('input'));
+  });
+
+  // Hide dropdown when leaving the input, with a delay to allow clicks
+  messageInput.addEventListener('blur', () => {
+    setTimeout(() => {
+      mentionActive = false;
+      updateMentionsDropdown();
+    }, 200);
+  });
 
   function updateMentionsDropdown() {
     if (!mentionActive) {
