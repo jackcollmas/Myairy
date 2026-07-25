@@ -8,12 +8,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Italianno&family=Passero+One&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <!-- PIN Lock Screen -->
   <div id="lock-screen" class="view active">
+    <div id="floating-words-container"></div>
     <div class="lock-container">
       <h1>Myairy</h1>
       <p>Enter your PIN to continue</p>
@@ -55,10 +57,7 @@
       <section id="view-dashboard" class="sub-view active">
         <header>
           <h2>Recent Journals</h2>
-          <div style="display: flex; gap: 0.5rem;">
-            <button id="dark-mode-toggle" class="icon-btn" title="Toggle Dark Mode"><i class="fas fa-moon"></i></button>
-            <button id="new-journal-btn" class="primary-btn">+ New Entry</button>
-          </div>
+          <button id="dark-mode-toggle" class="icon-btn" title="Toggle Dark Mode"><i class="fas fa-moon"></i></button>
         </header>
         <div id="journals-list" class="journals-list">
           <!-- Journals injected here -->
@@ -69,7 +68,6 @@
       <section id="view-personas" class="sub-view hidden">
         <header>
           <h2>Manage Personas</h2>
-          <button id="new-persona-btn" class="primary-btn">+ Add Persona</button>
         </header>
         <div id="personas-list" class="personas-list">
           <!-- Personas injected here -->
@@ -126,8 +124,15 @@
           </button>
           <div class="pagination-info">
             Page <span id="current-page">1</span> of <span id="total-pages">1</span>
+            <input type="number" id="jump-to-page" min="1" placeholder="Go to">
             <span class="pagination-divider">|</span>
             Showing <span id="results-range">1-10</span> of <span id="total-results">0</span>
+            <select id="results-per-page">
+              <option value="5">5 / page</option>
+              <option value="10" selected>10 / page</option>
+              <option value="20">20 / page</option>
+              <option value="50">50 / page</option>
+            </select>
           </div>
           <button id="next-page-btn" class="pagination-btn">
             Next <i class="fas fa-chevron-right"></i>
@@ -142,9 +147,9 @@
             <h2 id="entry-title" contenteditable="true" spellcheck="false" title="Click to edit title">Journal Title</h2>
             <p id="entry-date">Date</p>
           </div>
-          <div style="display: flex; gap: 0.5rem;">
+          <div class="entry-actions-container" style="display: flex; gap: 0.5rem;">
             <button id="toggle-star-btn" class="icon-btn" title="Mark as Special"><i class="far fa-star"></i></button>
-            <button id="back-to-dashboard" class="icon-btn"><i class="fas fa-arrow-left"></i> Back</button>
+            <button id="back-to-dashboard" class="icon-btn" title="Back"><i class="fas fa-arrow-left"></i> <span>Back</span></button>
           </div>
         </header>
         
@@ -217,6 +222,17 @@
         </div>
       </section>
     </main>
+
+    <!-- Floating Action Buttons -->
+    <button id="new-journal-btn" class="fab" title="New Entry" aria-label="New Entry">
+      <i class="fas fa-plus"></i>
+      <span class="fab-label">New Entry</span>
+    </button>
+    <button id="new-persona-btn" class="fab fab-hidden" title="Add Persona" aria-label="Add Persona">
+      <i class="fas fa-plus"></i>
+      <span class="fab-label">Add Persona</span>
+    </button>
+
   </div>
 
   <!-- Modal -->

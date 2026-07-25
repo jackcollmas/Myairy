@@ -487,7 +487,8 @@ async function startServer() {
       }
 
       const updated = await dbService.updateJournal(journalId, { messages: journal.messages });
-      res.json({ success: true, reactions: updated?.messages[messageIndex].reactions });
+      // Return the full updated journal object so frontend can re-render
+      res.json(updated);
     } catch (err: any) {
       res.status(500).json({ error: err.message || 'Failed to add reaction' });
     }

@@ -137,9 +137,70 @@ document.addEventListener('DOMContentLoaded', () => {
   // Pagination state
   let searchResultsCache = [];
   let currentSearchPage = 1;
-  const resultsPerPage = 10;
+  let resultsPerPage = 10;
+
+  const jumpToPageInput = document.getElementById('jump-to-page');
+  const resultsPerPageSelect = document.getElementById('results-per-page');
 
   // --- Initialization ---
+
+  // --- Floating Words Animation (Lock Screen) ---
+  const POWERFUL_WORDS = [
+    'creativity', 'personality', 'life', 'courage', 'silence',
+    'wonder', 'freedom', 'resilience', 'truth', 'growth',
+    'clarity', 'purpose', 'passion', 'solitude', 'presence',
+    'grace', 'depth', 'intention', 'becoming', 'memory',
+    'stillness', 'identity', 'longing', 'surrender', 'vision',
+    'instinct', 'light', 'persistence', 'soul', 'reflection',
+    'curiosity', 'vulnerability', 'momentum', 'awareness', 'joy'
+  ];
+
+  const floatingWordsContainer = document.getElementById('floating-words-container');
+  let floatingWordsInterval = null;
+
+  function spawnFloatingWord() {
+    if (!floatingWordsContainer) return;
+    const word = POWERFUL_WORDS[Math.floor(Math.random() * POWERFUL_WORDS.length)];
+    const el = document.createElement('span');
+    el.classList.add('floating-word');
+    el.textContent = word;
+
+    const topPct  = 5 + Math.random() * 85;
+    const leftPct = 3 + Math.random() * 80;
+    const rotation = (Math.random() - 0.5) * 22;
+    const fontSize = 1.4 + Math.random() * 2.2;
+    const fonts = ["'Italianno', cursive", "'Passero One', cursive"];
+    const chosenFont = fonts[Math.floor(Math.random() * fonts.length)];
+
+    el.style.cssText = `
+      top: ${topPct}%;
+      left: ${leftPct}%;
+      --rot: ${rotation}deg;
+      font-size: ${fontSize}rem;
+      font-family: ${chosenFont};
+      color: var(--text-color);
+    `;
+
+    floatingWordsContainer.appendChild(el);
+    setTimeout(() => el.remove(), 6200);
+  }
+
+  function startFloatingWords() {
+    if (floatingWordsInterval) return; // already running
+    spawnFloatingWord();
+    floatingWordsInterval = setInterval(spawnFloatingWord, 500);
+  }
+
+  function stopFloatingWords() {
+    if (floatingWordsInterval) {
+      clearInterval(floatingWordsInterval);
+      floatingWordsInterval = null;
+    }
+    if (floatingWordsContainer) floatingWordsContainer.innerHTML = '';
+  }
+
+  // Start immediately — lock screen is the first thing shown
+  startFloatingWords();
 
   // --- Lock Screen Logic ---
   pinInput.addEventListener('input', async (e) => {
@@ -159,6 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
           appScreen.classList.add('active');
           pinInput.value = '';
           lockError.textContent = '';
+          stopFloatingWords();
           await loadDashboard();
           getOrCreateTodayJournal();
         } else {
@@ -187,6 +249,33 @@ document.addEventListener('DOMContentLoaded', () => {
     lockScreen.classList.remove('hidden');
     lockScreen.classList.add('active');
   });
+
+  // Restart animation when locking the app
+  lockAppBtn.addEventListener('click', startFloatingWords);
+
+  // --- FAB Visibility ---
+  const fabJournal = document.getElementById('new-journal-btn');
+  const fabPersona = document.getElementById('new-persona-btn');
+
+  function updateFab(viewId) {
+    // Hide all FABs first
+    if (fabJournal) fabJournal.classList.add('fab-hidden');
+    if (fabPersona) fabPersona.classList.add('fab-hidden');
+
+    // Show the relevant FAB and re-trigger entrance animation
+    const showFab = (fab) => {
+      if (!fab) return;
+      fab.classList.remove('fab-hidden');
+      // Re-trigger animation by removing and re-adding
+      fab.style.animation = 'none';
+      fab.offsetHeight; // reflow
+      fab.style.animation = '';
+    };
+
+    if (viewId === 'view-dashboard') showFab(fabJournal);
+    else if (viewId === 'view-personas') showFab(fabPersona);
+    // view-entry and view-search: keep both hidden
+  }
 
   // --- Navigation ---
   function switchView(viewId) {
@@ -222,6 +311,8 @@ document.addEventListener('DOMContentLoaded', () => {
       navSearch.classList.add('active');
       loadSearch();
     }
+
+    updateFab(viewId);
   }
 
   // Open Latest Journal (for Chat tab)
@@ -460,6 +551,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  if (jumpToPageInput) {
+    jumpToPageInput.addEventListener('change', (e) => {
+      const page = parseInt(e.target.value);
+      const totalPages = Math.ceil(searchResultsCache.length / resultsPerPage);
+      
+      if (page >= 1 && page <= totalPages) {
+        currentSearchPage = page;
+        renderSearchResults(searchInput.value.trim());
+      } else {
+        // Reset to current page if invalid
+        e.target.value = currentSearchPage;
+      }
+    });
+  }
+
+  if (resultsPerPageSelect) {
+    resultsPerPageSelect.addEventListener('change', (e) => {
+      resultsPerPage = parseInt(e.target.value);
+      currentSearchPage = 1; // Reset to page 1 when page size changes
+      renderSearchResults(searchInput.value.trim());
+    });
+  }
+
   // Perform Search
   function performSearch() {
     const query = searchInput.value.trim().toLowerCase();
@@ -553,6 +667,10 @@ document.addEventListener('DOMContentLoaded', () => {
       totalPagesSpan.textContent = totalPages;
       resultsRangeSpan.textContent = `${startIdx + 1}-${Math.min(endIdx, totalResults)}`;
       totalResultsSpan.textContent = totalResults;
+      
+      if (jumpToPageInput) {
+        jumpToPageInput.value = currentSearchPage;
+      }
       
       // Update button states
       prevPageBtn.disabled = currentSearchPage === 1;
@@ -713,10 +831,9 @@ document.addEventListener('DOMContentLoaded', () => {
           <h3>${persona.avatarIcon} ${persona.name}</h3>
           <div class="persona-actions">
             <button class="icon-btn persona-edit-btn" data-id="${persona.id}" title="Edit persona"><i class="fas fa-pen"></i></button>
-            <button class="icon-btn persona-delete-btn" data-id="${persona.id}" title="Delete persona">🗑️</button>
+            <button class="icon-btn persona-delete-btn" data-id="${persona.id}" title="Delete persona"><i class="fas fa-trash"></i></button>
           </div>
         </div>
-        <p>${persona.description || 'No description'}</p>
       `;
       personasList.appendChild(card);
     });
@@ -770,6 +887,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderMessages(messages) {
     entryMessages.innerHTML = '';
+    if (!messages || !Array.isArray(messages)) {
+      console.warn('renderMessages called with invalid messages:', messages);
+      return;
+    }
     messages.forEach(msg => {
       // Skip permanently deleted messages (after undo window)
       if (msg.permanentlyDeleted) return;
@@ -1613,9 +1734,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Show Reaction Picker
   function showReactionPicker(e) {
-    const rect = messageContextMenu.getBoundingClientRect();
-    reactionPicker.style.left = `${rect.left}px`;
-    reactionPicker.style.top = `${rect.bottom + 5}px`;
+    reactionPicker.style.left = messageContextMenu.style.left;
+    reactionPicker.style.top = `${parseFloat(messageContextMenu.style.top) - 60}px`;
     reactionPicker.classList.remove('hidden');
   }
 
@@ -1635,17 +1755,27 @@ document.addEventListener('DOMContentLoaded', () => {
   window.toggleReaction = async function(messageId, emoji) {
     if (!activeJournalId) return;
 
-    const personaId = personaSelector.value;
+    const personaId = activeSenderId;
     
     try {
       const res = await fetch(`/api/journals/${activeJournalId}/messages/${messageId}/react`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emoji, personaId })
+        body: JSON.stringify({ personaId, emoji })
       });
-
       if (res.ok) {
-        openJournal(activeJournalId); // Refresh to show reactions
+        const updatedJournal = await res.json();
+        
+        // Update local state
+        const jIdx = currentJournals.findIndex(j => j.id === activeJournalId);
+        if (jIdx !== -1) {
+          currentJournals[jIdx] = updatedJournal;
+        }
+
+        // Re-render but preserve scroll position
+        const scrollPos = entryMessages.scrollTop;
+        renderMessages(updatedJournal.messages);
+        entryMessages.scrollTop = scrollPos;
       }
     } catch (e) {
       console.error('Failed to toggle reaction:', e);
