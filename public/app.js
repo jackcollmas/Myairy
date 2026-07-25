@@ -1726,7 +1726,7 @@ document.addEventListener('DOMContentLoaded', () => {
           // If we're currently viewing this journal, go back to dashboard
           if (activeJournalId === journalId) {
             activeJournalId = null;
-            showView('dashboard');
+            switchView('dashboard');
           }
           
           // Reload journals and dashboard
