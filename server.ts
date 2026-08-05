@@ -122,7 +122,7 @@ async function startServer() {
       // Add system message at the beginning
       const systemMessage = {
         role: 'system' as const,
-        content: 'You are a helpful AI assistant in a personal journal application. Be conversational, empathetic, and provide thoughtful responses. Keep responses concise but meaningful.'
+        content: 'You are a helpful AI assistant in a personal journal application. Be conversational, empathetic, and provide thoughtful responses. Keep responses concise (under 500 words). Format your responses with proper paragraphs using double line breaks. Use markdown for emphasis when appropriate.'
       };
 
       // Call Groq API
@@ -130,7 +130,7 @@ async function startServer() {
         messages: [systemMessage, ...formattedMessages],
         model: 'openai/gpt-oss-120b', // GPT OSS 120B model
         temperature: 0.7,
-        max_tokens: 1024,
+        max_tokens: 800, // Limit response length (roughly 500-600 words)
       });
 
       const aiResponse = chatCompletion.choices[0]?.message?.content || 'I apologize, but I could not generate a response.';

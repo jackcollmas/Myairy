@@ -704,11 +704,47 @@ header h2 {
   color: var(--text-color);
   border: none;
   box-shadow: none;
+  white-space: pre-wrap; /* Preserve line breaks and wrap text */
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  line-height: 1.7;
 }
 
 .message.ai-message .message-name {
   color: #667eea;
   font-weight: 700;
+}
+
+/* Format AI response paragraphs */
+.message.ai-message .message-content p {
+  margin-bottom: 1rem;
+}
+
+.message.ai-message .message-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* Format AI response lists */
+.message.ai-message .message-content ul,
+.message.ai-message .message-content ol {
+  margin: 0.5rem 0 1rem 1.5rem;
+}
+
+.message.ai-message .message-content li {
+  margin-bottom: 0.5rem;
+}
+
+/* Format AI response bold text */
+.message.ai-message .message-content strong {
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+/* Format AI response emphasis */
+.message.ai-message .message-content em {
+  font-style: italic;
+  color: var(--gray-text);
 }
 
 .message.user-ai-query .message-content {

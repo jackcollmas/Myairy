@@ -1417,6 +1417,34 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Helper function to format AI response text
+  function formatAIResponse(text) {
+    if (!text) return '';
+    
+    // Convert double line breaks to paragraphs
+    let formatted = text.replace(/\n\n/g, '</p><p>');
+    formatted = '<p>' + formatted + '</p>';
+    
+    // Convert single line breaks to <br>
+    formatted = formatted.replace(/\n/g, '<br>');
+    
+    // Convert **bold** to <strong>
+    formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    
+    // Convert *italic* to <em>
+    formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    
+    // Convert numbered lists (1. 2. 3.)
+    formatted = formatted.replace(/(\d+\.)\s+(.+?)(<br>|<\/p>)/g, '<li>$2</li>');
+    formatted = formatted.replace(/(<li>.*<\/li>)/g, '<ol>$1</ol>');
+    
+    // Clean up empty paragraphs
+    formatted = formatted.replace(/<p><\/p>/g, '');
+    formatted = formatted.replace(/<p>\s*<\/p>/g, '');
+    
+    return formatted;
+  }
+
   // Helper function to create a single message element (for optimistic UI)
   function createMessageElement(msg, allMessages = []) {
     // Skip permanently deleted messages (after undo window)
@@ -1477,7 +1505,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // Build content (show placeholder if deleted)
-    const messageText = isDeleted ? '<em>This message was deleted</em>' : msg.content;
+    const messageText = isDeleted ? '<em>This message was deleted</em>' : (isAI ? formatAIResponse(msg.content) : msg.content);
     const editedIndicator = msg.edited && !isDeleted ? '<span class="message-edited">(edited)</span>' : '';
 
     // Build reactions display
@@ -2889,39 +2917,21 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function loadAnalytics() {
-    console.log('=== LOAD ANALYTICS STARTED ===');
     try {
-      console.log('Fetching journals, personas, and insights...');
       const [journalsRes, personasRes, insightsRes] = await Promise.all([
         fetch('/api/journals'),
         fetch('/api/personas'),
         fetch('/api/insights')
       ]);
       
-      console.log('Fetch responses:', {
-        journalsStatus: journalsRes.status,
-        personasStatus: personasRes.status,
-        insightsStatus: insightsRes.status
-      });
-      
       const journals = await journalsRes.json();
       const personas = await personasRes.json();
       const insights = await insightsRes.json();
       
-      console.log('Data loaded:', {
-        journalsCount: journals.length,
-        personasCount: personas.length,
-        insightsCount: insights.length
-      });
-      
       calculateStats(journals, personas);
       renderInsights(insights);
-      
-      console.log('=== LOAD ANALYTICS COMPLETE ===');
     } catch (e) {
-      console.error('=== ERROR IN LOAD ANALYTICS ===');
-      console.error('Error:', e);
-      console.error('=== LOAD ANALYTICS FAILED ===');
+      console.error('Failed to load analytics data', e);
     }
   }
 
@@ -3139,64 +3149,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (generateInsightBtn) {
     generateInsightBtn.addEventListener('click', async (e) => {
-      console.log('=== AI ANALYTICS GENERATE INSIGHT CLICKED ===');
-      console.log('Event:', e);
-      console.log('Button:', generateInsightBtn);
-      console.log('Timestamp:', new Date().toISOString());
-      
-      e.preventDefault(); // Prevent default button behavior
-      e.stopPropagation(); // Stop event bubbling
-      
-      console.log('After preventDefault and stopPropagation');
+      e.preventDefault();
+      e.stopPropagation();
       
       const originalHtml = generateInsightBtn.innerHTML;
-      console.log('Original button HTML:', originalHtml);
-      
       generateInsightBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
       generateInsightBtn.disabled = true;
-      console.log('Button disabled and spinner shown');
       
       try {
-        console.log('Starting fetch to /api/insights...');
-        const startTime = Date.now();
-        
         const res = await fetch('/api/insights', { method: 'POST' });
-        
-        const fetchDuration = Date.now() - startTime;
-        console.log('Fetch completed in', fetchDuration, 'ms');
-        console.log('Response status:', res.status);
-        console.log('Response ok:', res.ok);
-        
         const data = await res.json();
-        console.log('Response data:', data);
         
         if (!res.ok) {
-          console.error('Response not OK, throwing error');
           throw new Error(data.error || 'Failed to generate insight');
         }
         
-        console.log('Insight generated successfully, reloading analytics...');
-        // Reload analytics
         await loadAnalytics();
-        console.log('Analytics reloaded successfully');
-        
       } catch (e) {
-        console.error('=== ERROR GENERATING INSIGHT ===');
-        console.error('Error type:', e.constructor.name);
-        console.error('Error message:', e.message);
-        console.error('Error stack:', e.stack);
-        console.error('Full error object:', e);
+        console.error('Error generating insight:', e);
         alert(e.message);
       } finally {
-        console.log('Restoring button state...');
         generateInsightBtn.innerHTML = originalHtml;
         generateInsightBtn.disabled = false;
-        console.log('Button restored');
-        console.log('=== AI ANALYTICS GENERATE INSIGHT COMPLETE ===');
       }
     });
-  } else {
-    console.error('generateInsightBtn not found in DOM!');
   }
 
 });
