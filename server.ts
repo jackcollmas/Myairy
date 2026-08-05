@@ -121,7 +121,7 @@ async function startServer() {
 
       // Add system message at the beginning
       const systemMessage = {
-        role: 'system',
+        role: 'system' as const,
         content: 'You are a helpful AI assistant in a personal journal application. Be conversational, empathetic, and provide thoughtful responses. Keep responses concise but meaningful.'
       };
 
@@ -608,7 +608,7 @@ async function startServer() {
       }
 
       const systemMessage = {
-        role: 'system',
+        role: 'system' as const,
         content: 'You are an insightful and empathetic AI assistant. Analyze the following conversation history from the user\'s personal journal. The user interacts through different "personas". Provide a short (2-3 sentences), encouraging, and thoughtful observation about their mood, focus, or activities. Be direct and compassionate.'
       };
 
@@ -620,7 +620,7 @@ async function startServer() {
       }
 
       const userMessage = {
-        role: 'user',
+        role: 'user' as const,
         content: userContent
       };
 
