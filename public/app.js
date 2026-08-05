@@ -856,6 +856,15 @@ document.addEventListener('DOMContentLoaded', () => {
       ]);
       currentJournals = await journalsRes.json();
       currentPersonas = await personasRes.json();
+      
+      // Ensure we have an active sender
+      if (currentPersonas.length > 0 && !activeSenderId) {
+        activeSenderId = currentPersonas[0].id;
+      }
+      
+      // Save personas to localStorage
+      savePersonasToLocalStorage(currentPersonas);
+      
       renderJournals();
     } catch (e) {
       console.error('Failed to load dashboard data');
@@ -1564,13 +1573,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Handle AI Message
   async function handleAIMessage(userPrompt) {
-    if (!activeJournalId || !userPrompt) return;
+    if (!activeJournalId) return;
+    if (!userPrompt) return;
 
     try {
+      // Ensure we have an active sender
+      if (!activeSenderId && currentPersonas.length > 0) {
+        activeSenderId = currentPersonas[0].id;
+      }
+      
       // Show user's message first
       const personaId = activeSenderId;
       const persona = currentPersonas.find(p => p.id === personaId);
-      if (!persona) return;
+      
+      if (!persona) {
+        alert('No persona selected. Please create a persona first or select one from the Personas tab.');
+        return;
+      }
 
       // Add user message with @ prefix to journal
       const userMessage = {
@@ -1991,7 +2010,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.appendChild(fullscreenDiv);
   };
 
-  sendMessageBtn.addEventListener('click', async () => {
+  sendMessageBtn.addEventListener('click', async (e) => {
+    e.preventDefault(); // Prevent any default form submission behavior
+    
     if (!activeJournalId) return;
     
     // Allow sending if there's text, image, or both
@@ -2033,40 +2054,52 @@ document.addEventListener('DOMContentLoaded', () => {
     if (content.startsWith('@')) {
       let matched = false;
       
-      // Check AI first
-      if (content.toLowerCase().startsWith('@ai assistant ') || content.toLowerCase().startsWith('@ai ')) {
-        const aiPrefix = content.toLowerCase().startsWith('@ai assistant ') ? '@ai assistant ' : '@ai ';
+      // Check AI first (case insensitive)
+      const lowerContent = content.toLowerCase();
+      
+      if (lowerContent.startsWith('@ai assistant ') || lowerContent.startsWith('@ai ')) {
+        const aiPrefix = lowerContent.startsWith('@ai assistant ') ? '@ai assistant ' : '@ai ';
         const aiPrompt = content.substring(aiPrefix.length).trim();
         await handleAIMessage(aiPrompt);
-        cancelReply();
+        clearReplyAttachment();
+        clearImageAttachments();
         return;
-      } else if (content.toLowerCase() === '@ai assistant' || content.toLowerCase() === '@ai') {
-        await handleAIMessage('');
-        cancelReply();
+      } else if (lowerContent === '@ai assistant' || lowerContent === '@ai') {
+        await handleAIMessage('Hello');
+        clearReplyAttachment();
+        clearImageAttachments();
         return;
       }
 
       // Check personas
       for (const p of currentPersonas) {
         const prefix = `@${p.name.toLowerCase()} `;
-        if (content.toLowerCase().startsWith(prefix)) {
+        if (lowerContent.startsWith(prefix)) {
           finalPersonaId = p.id;
           finalContent = content.substring(prefix.length).trim();
           matched = true;
           break;
-        } else if (content.toLowerCase() === `@${p.name.toLowerCase()}`) {
+        } else if (lowerContent === `@${p.name.toLowerCase()}`) {
           finalPersonaId = p.id;
           finalContent = '';
           matched = true;
           break;
         }
       }
-      
-      // If no persona matched but it starts with @, maybe it's just text, or maybe we just leave it.
     }
 
+    // Ensure we have a persona ID
+    if (!finalPersonaId && currentPersonas.length > 0) {
+      finalPersonaId = currentPersonas[0].id;
+      activeSenderId = finalPersonaId;
+    }
+    
     const persona = currentPersonas.find(p => p.id === finalPersonaId);
-    if (!persona) return;
+    
+    if (!persona) {
+      alert('No persona selected. Please create a persona first or go to the Personas tab.');
+      return;
+    }
 
     if (!finalContent && uploadedImageUrls.length === 0) return;
 
@@ -2096,7 +2129,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedImages = [...uploadedImageUrls];
     const savedReply = replyingToMessage;
     
-    messageInput.value = '';
+    resetMessageInput(); // Reset to @ instead of clearing completely
     clearReplyAttachment();
     clearImageAttachments();
     
@@ -2843,33 +2876,40 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-// --- Analytics Logic ---
-  const statStreak = document.getElementById('stat-streak');
-  const statTopPersona = document.getElementById('stat-top-persona');
-  const statActiveDay = document.getElementById('stat-active-day');
-  const statTotalMsgs = document.getElementById('stat-total-msgs');
-  const statTotalImgs = document.getElementById('stat-total-imgs');
-  const statTotalStars = document.getElementById('stat-total-stars');
-  const statTotalReacts = document.getElementById('stat-total-reacts');
-  const activityChart = document.getElementById('activity-chart');
-  const generateInsightBtn = document.getElementById('generate-insight-btn');
-  const insightsList = document.getElementById('insights-list');
-
   async function loadAnalytics() {
+    console.log('=== LOAD ANALYTICS STARTED ===');
     try {
+      console.log('Fetching journals, personas, and insights...');
       const [journalsRes, personasRes, insightsRes] = await Promise.all([
         fetch('/api/journals'),
         fetch('/api/personas'),
         fetch('/api/insights')
       ]);
+      
+      console.log('Fetch responses:', {
+        journalsStatus: journalsRes.status,
+        personasStatus: personasRes.status,
+        insightsStatus: insightsRes.status
+      });
+      
       const journals = await journalsRes.json();
       const personas = await personasRes.json();
       const insights = await insightsRes.json();
       
+      console.log('Data loaded:', {
+        journalsCount: journals.length,
+        personasCount: personas.length,
+        insightsCount: insights.length
+      });
+      
       calculateStats(journals, personas);
       renderInsights(insights);
+      
+      console.log('=== LOAD ANALYTICS COMPLETE ===');
     } catch (e) {
-      console.error('Failed to load analytics data', e);
+      console.error('=== ERROR IN LOAD ANALYTICS ===');
+      console.error('Error:', e);
+      console.error('=== LOAD ANALYTICS FAILED ===');
     }
   }
 
@@ -3086,29 +3126,65 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (generateInsightBtn) {
-    generateInsightBtn.addEventListener('click', async () => {
+    generateInsightBtn.addEventListener('click', async (e) => {
+      console.log('=== AI ANALYTICS GENERATE INSIGHT CLICKED ===');
+      console.log('Event:', e);
+      console.log('Button:', generateInsightBtn);
+      console.log('Timestamp:', new Date().toISOString());
+      
+      e.preventDefault(); // Prevent default button behavior
+      e.stopPropagation(); // Stop event bubbling
+      
+      console.log('After preventDefault and stopPropagation');
+      
       const originalHtml = generateInsightBtn.innerHTML;
+      console.log('Original button HTML:', originalHtml);
+      
       generateInsightBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
       generateInsightBtn.disabled = true;
+      console.log('Button disabled and spinner shown');
       
       try {
+        console.log('Starting fetch to /api/insights...');
+        const startTime = Date.now();
+        
         const res = await fetch('/api/insights', { method: 'POST' });
+        
+        const fetchDuration = Date.now() - startTime;
+        console.log('Fetch completed in', fetchDuration, 'ms');
+        console.log('Response status:', res.status);
+        console.log('Response ok:', res.ok);
+        
         const data = await res.json();
+        console.log('Response data:', data);
         
         if (!res.ok) {
+          console.error('Response not OK, throwing error');
           throw new Error(data.error || 'Failed to generate insight');
         }
         
+        console.log('Insight generated successfully, reloading analytics...');
         // Reload analytics
-        loadAnalytics();
+        await loadAnalytics();
+        console.log('Analytics reloaded successfully');
+        
       } catch (e) {
-        console.error(e);
+        console.error('=== ERROR GENERATING INSIGHT ===');
+        console.error('Error type:', e.constructor.name);
+        console.error('Error message:', e.message);
+        console.error('Error stack:', e.stack);
+        console.error('Full error object:', e);
         alert(e.message);
       } finally {
+        console.log('Restoring button state...');
         generateInsightBtn.innerHTML = originalHtml;
         generateInsightBtn.disabled = false;
+        console.log('Button restored');
+        console.log('=== AI ANALYTICS GENERATE INSIGHT COMPLETE ===');
       }
     });
+  } else {
+    console.error('generateInsightBtn not found in DOM!');
   }
 
 });
