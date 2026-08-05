@@ -136,6 +136,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalOverlay = document.getElementById('modal-overlay');
   const modalContent = document.getElementById('modal-content');
 
+  // Analytics elements
+  const statStreak = document.getElementById('stat-streak');
+  const statTopPersona = document.getElementById('stat-top-persona');
+  const statActiveDay = document.getElementById('stat-active-day');
+  const statTotalMsgs = document.getElementById('stat-total-msgs');
+  const statTotalImgs = document.getElementById('stat-total-imgs');
+  const statTotalStars = document.getElementById('stat-total-stars');
+  const statTotalReacts = document.getElementById('stat-total-reacts');
+  const activityChart = document.getElementById('activity-chart');
+  const generateInsightBtn = document.getElementById('generate-insight-btn');
+  const insightsList = document.getElementById('insights-list');
+
   // --- State ---
   let currentPersonas = [];
   let currentJournals = [];
