@@ -10,6 +10,10 @@ import cors from 'cors';
 
 dotenv.config();
 
+// ONLY FOR DEVELOPMENT - Bypass SSL certificate verification
+// Remove this in production or when deploying
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 // Personas and Journals interfaces based on types.ts
 export interface Persona {
   id: string;
@@ -28,6 +32,12 @@ export interface JournalEntry {
   messages: any[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Insight {
+  id: string;
+  content: string;
+  createdAt: string;
 }
 
 const PORT = 3000;
@@ -118,7 +128,7 @@ async function startServer() {
       // Call Groq API
       const chatCompletion = await groq.chat.completions.create({
         messages: [systemMessage, ...formattedMessages],
-        model: 'llama-3.3-70b-versatile', // Fast and capable model
+        model: 'openai/gpt-oss-120b', // GPT OSS 120B model
         temperature: 0.7,
         max_tokens: 1024,
       });
@@ -527,6 +537,115 @@ async function startServer() {
       res.json({ success: true, message: updated?.messages[messageIndex] });
     } catch (err: any) {
       res.status(500).json({ error: err.message || 'Failed to add reply reference' });
+    }
+  });
+
+  // --- Insights CRUD ---
+
+  app.get('/api/insights', async (req, res) => {
+    try {
+      const insights = await dbService.getInsights();
+      res.json(insights);
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to fetch insights' });
+    }
+  });
+
+  app.post('/api/insights', async (req, res) => {
+    try {
+      // 1. Fetch all journals and collect all messages
+      const journals = await dbService.getJournals();
+      
+      let allMessages: any[] = [];
+      journals.forEach(j => {
+        if (j.messages && j.messages.length > 0) {
+          allMessages = allMessages.concat(j.messages);
+        }
+      });
+
+      if (allMessages.length === 0) {
+        return res.status(400).json({ error: 'Not enough messages to generate an insight.' });
+      }
+
+      // Sort by timestamp (oldest to newest)
+      allMessages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+      // Get messages within 15,000 character limit (counting backwards)
+      const charLimit = 15000;
+      const selectedMessages: any[] = [];
+      let totalChars = 0;
+
+      for (let i = allMessages.length - 1; i >= 0; i--) {
+        const msg = allMessages[i];
+        const formattedContent = `${msg.personaName} said: ${msg.content}`;
+        const messageLength = formattedContent.length;
+
+        // Check if adding this message would exceed limit
+        if (totalChars + messageLength > charLimit && selectedMessages.length > 0) {
+          break; // Stop adding messages
+        }
+
+        selectedMessages.unshift(msg); // Add to beginning to maintain order
+        totalChars += messageLength;
+      }
+
+      // Find the AI's last message from the selected messages
+      let aiLastMessage = null;
+      for (let i = selectedMessages.length - 1; i >= 0; i--) {
+        if (selectedMessages[i].personaId === 'ai_assistant') {
+          aiLastMessage = selectedMessages[i].content;
+          break;
+        }
+      }
+
+      // Format messages for Groq with persona names
+      const messageLog = selectedMessages.map(m => `${m.personaName} said: ${m.content}`).join('\n');
+
+      if (!process.env.GROQ_API_KEY) {
+        return res.status(500).json({ 
+          error: 'Groq API key not configured.' 
+        });
+      }
+
+      const systemMessage = {
+        role: 'system',
+        content: 'You are an insightful and empathetic AI assistant. Analyze the following conversation history from the user\'s personal journal. The user interacts through different "personas". Provide a short (2-3 sentences), encouraging, and thoughtful observation about their mood, focus, or activities. Be direct and compassionate.'
+      };
+
+      // Build user message with optional "last time you said" reminder
+      let userContent = `Here are the recent journal messages:\n\n${messageLog}`;
+      
+      if (aiLastMessage) {
+        userContent += `\n\n(Note: Last time you provided an insight, you said: "${aiLastMessage}")`;
+      }
+
+      const userMessage = {
+        role: 'user',
+        content: userContent
+      };
+
+      const chatCompletion = await groq.chat.completions.create({
+        messages: [systemMessage, userMessage],
+        model: 'openai/gpt-oss-120b', // GPT OSS 120B model
+        temperature: 0.7,
+        max_tokens: 300,
+      });
+
+      const aiResponse = chatCompletion.choices[0]?.message?.content || 'I could not generate an insight at this time.';
+
+      // Save insight
+      const newInsight: Insight = {
+        id: `insight_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        content: aiResponse,
+        createdAt: new Date().toISOString(),
+      };
+
+      const savedInsight = await dbService.saveInsight(newInsight);
+      res.json(savedInsight);
+
+    } catch (err: any) {
+      console.error('Groq AI Insight Error:', err);
+      res.status(500).json({ error: err.message || 'Failed to generate AI insight' });
     }
   });
 

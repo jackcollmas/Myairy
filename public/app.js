@@ -3,17 +3,24 @@ document.addEventListener('DOMContentLoaded', () => {
   const lockScreen = document.getElementById('lock-screen');
   const appScreen = document.getElementById('app');
   const pinInput = document.getElementById('pin-input');
+  const pinLoading = document.getElementById('pin-loading');
   const lockError = document.getElementById('lock-error');
+  const preLoginInput = document.getElementById('pre-login-input');
+  const preLoginSendBtn = document.getElementById('pre-login-send-btn');
+  const preLoginQueue = document.getElementById('pre-login-queue');
+  const preLoginMentionsDropdown = document.getElementById('pre-login-mentions-dropdown');
 
   const navDashboard = document.getElementById('nav-dashboard');
   const navChat = document.getElementById('nav-chat');
   const navPersonas = document.getElementById('nav-personas');
   const navSearch = document.getElementById('nav-search');
+  const navAnalytics = document.getElementById('nav-analytics');
   const lockAppBtn = document.getElementById('lock-app-btn');
 
   const viewDashboard = document.getElementById('view-dashboard');
   const viewPersonas = document.getElementById('view-personas');
   const viewSearch = document.getElementById('view-search');
+  const viewAnalytics = document.getElementById('view-analytics');
   const viewEntry = document.getElementById('view-entry');
 
   const journalsList = document.getElementById('journals-list');
@@ -106,17 +113,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const sendMessageBtn = document.getElementById('sendMessage-btn') || document.getElementById('send-message-btn');
 
   const imageInput = document.getElementById('image-input');
-  const imageUploadBtn = document.getElementById('image-upload-btn');
+  const imageBtn = document.getElementById('image-btn');
+  const imageOptionsMenu = document.getElementById('image-options-menu');
   const attachmentPreview = document.getElementById('attachment-preview');
-  const imageAttachment = document.getElementById('image-attachment');
+  const imagesContainer = document.getElementById('images-container');
   const replyAttachment = document.getElementById('reply-attachment');
-  const attachmentImage = document.getElementById('attachment-image');
-  const attachmentOverlay = imageAttachment?.querySelector('.attachment-overlay');
-  const attachmentStatus = imageAttachment?.querySelector('.attachment-status');
-  const removeImageBtn = document.getElementById('remove-image-btn');
   const removeReplyBtn = document.getElementById('remove-reply-btn');
   const replyAuthor = document.getElementById('reply-author');
   const replyText = document.getElementById('reply-text');
+  
+  // Camera elements
+  const cameraModal = document.getElementById('camera-modal');
+  const cameraVideo = document.getElementById('camera-video');
+  const cameraCanvas = document.getElementById('camera-canvas');
+  const closeCameraBtn = document.getElementById('close-camera-btn');
+  const switchCameraBtn = document.getElementById('switch-camera-btn');
+  const capturePhotoBtn = document.getElementById('capture-photo-btn');
 
   const messageContextMenu = document.getElementById('message-context-menu');
   const reactionPicker = document.getElementById('reaction-picker');
@@ -130,9 +142,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeSenderId = null;
   let activeJournalId = null;
   let selectedImageFile = null;
-  let uploadedImageUrl = null;
+  let uploadedImageUrls = []; // Changed to array for multiple images
   let contextMenuTarget = null;
   let replyingToMessage = null;
+  
+  // Load personas from localStorage on page load (before login)
+  currentPersonas = getPersonasFromLocalStorage();
   
   // Pagination state
   let searchResultsCache = [];
@@ -141,6 +156,409 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const jumpToPageInput = document.getElementById('jump-to-page');
   const resultsPerPageSelect = document.getElementById('results-per-page');
+
+  // --- Initialization ---
+
+  // --- LocalStorage Management ---
+  function savePersonasToLocalStorage(personas) {
+    try {
+      const simplifiedPersonas = personas.map(p => ({
+        id: p.id,
+        name: p.name,
+        avatarIcon: p.avatarIcon,
+        color: p.color
+      }));
+      localStorage.setItem('myairy_personas', JSON.stringify(simplifiedPersonas));
+    } catch (e) {
+      console.error('Failed to save personas to localStorage:', e);
+    }
+  }
+
+  function getPersonasFromLocalStorage() {
+    try {
+      const stored = localStorage.getItem('myairy_personas');
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      console.error('Failed to load personas from localStorage:', e);
+      return [];
+    }
+  }
+
+  function savePreLoginMessagesToLocalStorage(messages) {
+    try {
+      localStorage.setItem('myairy_prelogin_messages', JSON.stringify(messages));
+    } catch (e) {
+      console.error('Failed to save pre-login messages:', e);
+    }
+  }
+
+  function getPreLoginMessagesFromLocalStorage() {
+    try {
+      const stored = localStorage.getItem('myairy_prelogin_messages');
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      console.error('Failed to load pre-login messages:', e);
+      return [];
+    }
+  }
+
+  function clearPreLoginMessages() {
+    try {
+      localStorage.removeItem('myairy_prelogin_messages');
+    } catch (e) {
+      console.error('Failed to clear pre-login messages:', e);
+    }
+  }
+
+  function savePreLoginInputState(text) {
+    try {
+      localStorage.setItem('myairy_prelogin_input', text);
+    } catch (e) {
+      console.error('Failed to save pre-login input:', e);
+    }
+  }
+
+  function getPreLoginInputState() {
+    try {
+      return localStorage.getItem('myairy_prelogin_input') || '';
+    } catch (e) {
+      console.error('Failed to load pre-login input:', e);
+      return '';
+    }
+  }
+
+  function clearPreLoginInputState() {
+    try {
+      localStorage.removeItem('myairy_prelogin_input');
+    } catch (e) {
+      console.error('Failed to clear pre-login input:', e);
+    }
+  }
+
+  // --- Pre-login Input Logic ---
+  let preLoginMessages = [];
+  let preLoginMentionActive = false;
+  let preLoginMentionQuery = '';
+  let preLoginSelectedMentionIndex = 0;
+  let preLoginMentionOptions = [];
+  
+  // Cache current journal messages for optimistic UI
+  let currentJournalMessages = [];
+
+  function updatePreLoginMentionsDropdown() {
+    // Only show dropdown if input has focus AND mention is active
+    if (!preLoginMentionActive || !preLoginInputHasFocus) {
+      preLoginMentionsDropdown.classList.add('hidden');
+      return;
+    }
+
+    // Filter options based on query
+    const query = preLoginMentionQuery.toLowerCase();
+    preLoginMentionOptions = [
+      { id: 'ai_assistant', name: 'AI Assistant', icon: 'fa-robot', color: '#4facfe' },
+      ...currentPersonas
+    ].filter(p => p.name.toLowerCase().includes(query));
+
+    if (preLoginMentionOptions.length === 0) {
+      preLoginMentionsDropdown.classList.add('hidden');
+      return;
+    }
+
+    // Ensure selected index is within bounds
+    if (preLoginSelectedMentionIndex >= preLoginMentionOptions.length) {
+      preLoginSelectedMentionIndex = 0;
+    }
+
+    preLoginMentionsDropdown.innerHTML = '';
+    preLoginMentionOptions.forEach((p, index) => {
+      const item = document.createElement('div');
+      item.className = `mention-item ${index === preLoginSelectedMentionIndex ? 'active' : ''}`;
+      
+      const avatarHtml = p.id === 'ai_assistant' 
+        ? `<i class="fas ${p.icon}"></i>` 
+        : (p.avatarIcon || '<i class="fas fa-user"></i>');
+        
+      item.innerHTML = `
+        <div class="mention-icon" style="color: ${p.color};">${avatarHtml}</div>
+        <div class="mention-name" style="color: ${p.color};">${p.name}</div>
+      `;
+      
+      item.addEventListener('click', () => {
+        insertPreLoginMention(p);
+      });
+      
+      preLoginMentionsDropdown.appendChild(item);
+    });
+
+    preLoginMentionsDropdown.classList.remove('hidden');
+  }
+
+  function insertPreLoginMention(persona) {
+    const val = preLoginInput.value;
+    const cursorPos = preLoginInput.selectionStart;
+    const textBeforeCursor = val.substring(0, cursorPos);
+    const atIndex = textBeforeCursor.lastIndexOf('@');
+    
+    if (atIndex !== -1) {
+      preLoginInput.value = val.substring(0, atIndex) + `@${persona.name} ` + val.substring(cursorPos);
+    } else {
+      preLoginInput.value = val + `@${persona.name} `;
+    }
+    preLoginMentionActive = false;
+    updatePreLoginMentionsDropdown();
+    preLoginInput.focus();
+  }
+
+  preLoginInput.addEventListener('input', (e) => {
+    const val = preLoginInput.value;
+    const cursorPos = preLoginInput.selectionStart;
+    
+    // Check if we are currently typing a mention
+    const textBeforeCursor = val.substring(0, cursorPos);
+    const atIndex = textBeforeCursor.lastIndexOf('@');
+    
+    if (atIndex !== -1) {
+      // Check if there is a space after the @
+      const textAfterAt = textBeforeCursor.substring(atIndex + 1);
+      if (!textAfterAt.includes(' ')) {
+        preLoginMentionActive = true;
+        preLoginMentionQuery = textAfterAt;
+        updatePreLoginMentionsDropdown();
+        return;
+      }
+    }
+    
+    preLoginMentionActive = false;
+    updatePreLoginMentionsDropdown();
+  });
+
+  preLoginInput.addEventListener('keydown', (e) => {
+    // Prevent deleting the @ symbol
+    if ((e.key === 'Backspace' || e.key === 'Delete') && preLoginInput.value === '@') {
+      e.preventDefault();
+      return;
+    }
+
+    // Don't send if only @ is present
+    if (e.key === 'Enter' && preLoginInput.value.trim() === '@') {
+      e.preventDefault();
+      return;
+    }
+
+    if (!preLoginMentionActive || preLoginMentionsDropdown.classList.contains('hidden')) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        preLoginSendBtn.click();
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      preLoginSelectedMentionIndex = (preLoginSelectedMentionIndex + 1) % preLoginMentionOptions.length;
+      updatePreLoginMentionsDropdown();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      preLoginSelectedMentionIndex = (preLoginSelectedMentionIndex - 1 + preLoginMentionOptions.length) % preLoginMentionOptions.length;
+      updatePreLoginMentionsDropdown();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      insertPreLoginMention(preLoginMentionOptions[preLoginSelectedMentionIndex]);
+    } else if (e.key === 'Escape') {
+      preLoginMentionActive = false;
+      updatePreLoginMentionsDropdown();
+    }
+  });
+
+  let preLoginInputHasFocus = false;
+
+  function resetPreLoginInput() {
+    preLoginInput.value = '@';
+    preLoginMentionActive = false;
+    preLoginMentionQuery = '';
+    updatePreLoginMentionsDropdown();
+  }
+
+  // Show dropdown when focusing the input if there's an @
+  preLoginInput.addEventListener('focus', () => {
+    preLoginInputHasFocus = true;
+    // Trigger input processing after setting focus flag
+    setTimeout(() => {
+      preLoginInput.dispatchEvent(new Event('input'));
+    }, 0);
+  });
+
+  // Hide dropdown when leaving the input, with a delay to allow clicks
+  preLoginInput.addEventListener('blur', () => {
+    setTimeout(() => {
+      preLoginInputHasFocus = false;
+      preLoginMentionActive = false;
+      updatePreLoginMentionsDropdown();
+    }, 200);
+  });
+
+  function renderPreLoginQueue() {
+    preLoginQueue.innerHTML = '';
+    preLoginMessages.forEach((msg, index) => {
+      const item = document.createElement('div');
+      item.className = 'pre-login-queue-item';
+      item.innerHTML = `
+        <span class="pre-login-queue-text">${msg}</span>
+        <button class="pre-login-queue-remove" data-index="${index}" title="Remove">
+          <i class="fas fa-times"></i>
+        </button>
+      `;
+      preLoginQueue.appendChild(item);
+    });
+
+    // Add event listeners to remove buttons
+    document.querySelectorAll('.pre-login-queue-remove').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const index = parseInt(e.currentTarget.getAttribute('data-index'));
+        preLoginMessages.splice(index, 1);
+        savePreLoginMessagesToLocalStorage(preLoginMessages);
+        renderPreLoginQueue();
+      });
+    });
+  }
+
+  // Load pre-login messages on page load
+  preLoginMessages = getPreLoginMessagesFromLocalStorage();
+  renderPreLoginQueue();
+
+  // Restore pre-login input state or set to @ if empty
+  const savedInputState = getPreLoginInputState();
+  preLoginInput.value = savedInputState || '@';
+
+  // Save input state as user types
+  preLoginInput.addEventListener('input', () => {
+    savePreLoginInputState(preLoginInput.value);
+  });
+
+  // Queue pre-login message
+  preLoginSendBtn.addEventListener('click', () => {
+    const message = preLoginInput.value.trim();
+    if (message && message !== '@') {
+      preLoginMessages.push(message);
+      savePreLoginMessagesToLocalStorage(preLoginMessages);
+      resetPreLoginInput();
+      clearPreLoginInputState();
+      renderPreLoginQueue();
+    }
+  });
+
+  // Remove the duplicate Enter key handler (already handled in keydown above)
+
+  // Send all queued messages when logging in
+  async function sendQueuedMessages() {
+    if (!activeJournalId) return;
+
+    const messagesToSend = [...preLoginMessages];
+    const inputText = preLoginInput.value.trim();
+    
+    if (inputText) {
+      messagesToSend.push(inputText);
+    }
+
+    if (messagesToSend.length === 0) return;
+
+    try {
+      // Fetch current journal
+      const jRes = await fetch(`/api/journals/${activeJournalId}`);
+      const journal = await jRes.json();
+
+      // Process each message
+      for (const content of messagesToSend) {
+        let finalPersonaId = activeSenderId || (currentPersonas.length > 0 ? currentPersonas[0].id : null);
+        let finalContent = content;
+
+        // Check if message starts with @PersonaName
+        if (content.startsWith('@')) {
+          let matched = false;
+          
+          // Check AI first
+          if (content.toLowerCase().startsWith('@ai assistant ') || content.toLowerCase().startsWith('@ai ')) {
+            const aiPrefix = content.toLowerCase().startsWith('@ai assistant ') ? '@ai assistant ' : '@ai ';
+            finalContent = content.substring(aiPrefix.length).trim();
+            // For AI messages, keep the @ in the content
+            finalContent = content; // Keep as is, will be handled by AI
+            matched = true;
+          } else if (content.toLowerCase() === '@ai assistant' || content.toLowerCase() === '@ai') {
+            finalContent = content; // Keep as is
+            matched = true;
+          }
+
+          // Check personas if not AI
+          if (!matched) {
+            for (const p of currentPersonas) {
+              const prefix = `@${p.name.toLowerCase()} `;
+              if (content.toLowerCase().startsWith(prefix)) {
+                finalPersonaId = p.id;
+                finalContent = content.substring(prefix.length).trim();
+                matched = true;
+                break;
+              } else if (content.toLowerCase() === `@${p.name.toLowerCase()}`) {
+                finalPersonaId = p.id;
+                finalContent = '';
+                matched = true;
+                break;
+              }
+            }
+          }
+        }
+
+        if (!finalPersonaId) continue;
+
+        const persona = currentPersonas.find(p => p.id === finalPersonaId);
+        if (!persona) continue;
+
+        if (!finalContent) continue;
+
+        const newMessage = {
+          id: `msg_${Date.now()}_${Math.random()}`,
+          personaId: persona.id,
+          personaName: persona.name,
+          personaColor: persona.color,
+          personaIcon: persona.avatarIcon,
+          content: finalContent,
+          timestamp: new Date().toISOString()
+        };
+
+        journal.messages.push(newMessage);
+        
+        // Small delay to ensure unique timestamps
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+
+      // Save updated journal
+      await fetch(`/api/journals/${activeJournalId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(journal)
+      });
+
+      // Clear queued messages
+      preLoginMessages = [];
+      clearPreLoginMessages();
+      preLoginInput.value = '';
+      clearPreLoginInputState();
+      renderPreLoginQueue();
+
+      // Reload journal to show new messages
+      openJournal(activeJournalId);
+    } catch (e) {
+      console.error('Failed to send queued messages:', e);
+    }
+  }
+
+  // Transfer pre-login input to chat input if user was typing when login completed
+  function transferPreLoginInput() {
+    const text = preLoginInput.value.trim();
+    if (text && messageInput) {
+      messageInput.value = text;
+      clearPreLoginInputState();
+    }
+  }
 
   // --- Initialization ---
 
@@ -206,6 +624,11 @@ document.addEventListener('DOMContentLoaded', () => {
   pinInput.addEventListener('input', async (e) => {
     const pin = e.target.value;
     if (pin.length === 4) {
+      // Show loading spinner
+      pinLoading.classList.remove('hidden');
+      pinInput.disabled = true;
+      lockError.textContent = '';
+      
       try {
         const res = await fetch('/api/verify-pin', {
           method: 'POST',
@@ -213,6 +636,7 @@ document.addEventListener('DOMContentLoaded', () => {
           body: JSON.stringify({ pin })
         });
         const data = await res.json();
+        
         if (data.success) {
           lockScreen.classList.remove('active');
           lockScreen.classList.add('hidden');
@@ -222,12 +646,26 @@ document.addEventListener('DOMContentLoaded', () => {
           lockError.textContent = '';
           stopFloatingWords();
           await loadDashboard();
-          getOrCreateTodayJournal();
+          await getOrCreateTodayJournal();
+          
+          // Send queued messages after a short delay
+          setTimeout(async () => {
+            await sendQueuedMessages();
+          }, 500);
+          
+          // Transfer any text in pre-login input to chat input
+          transferPreLoginInput();
         } else {
           lockError.textContent = data.message || 'Invalid PIN';
+          pinInput.value = '';
         }
       } catch (err) {
         lockError.textContent = 'Error verifying PIN';
+        pinInput.value = '';
+      } finally {
+        // Hide loading spinner and re-enable input
+        pinLoading.classList.add('hidden');
+        pinInput.disabled = false;
       }
     } else {
       lockError.textContent = ''; // clear error when typing
@@ -310,6 +748,9 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (viewId === 'view-search') {
       navSearch.classList.add('active');
       loadSearch();
+    } else if (viewId === 'view-analytics') {
+      navAnalytics.classList.add('active');
+      loadAnalytics();
     }
 
     updateFab(viewId);
@@ -356,6 +797,7 @@ document.addEventListener('DOMContentLoaded', () => {
   navChat.addEventListener('click', () => openLatestJournal());
   navPersonas.addEventListener('click', () => switchView('view-personas'));
   navSearch.addEventListener('click', () => switchView('view-search'));
+  navAnalytics.addEventListener('click', () => switchView('view-analytics'));
   backToDashboardBtn.addEventListener('click', () => switchView('view-dashboard'));
   
   if (toggleStarBtn) {
@@ -447,12 +889,26 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const res = await fetch('/api/personas');
       currentPersonas = await res.json();
+      
+      // Save personas to localStorage whenever they're loaded
+      savePersonasToLocalStorage(currentPersonas);
+      
       if (currentPersonas.length > 0 && !activeSenderId) {
         activeSenderId = currentPersonas[0].id;
       }
       renderPersonas();
     } catch (e) {
       console.error('Failed to load personas');
+      
+      // Fallback to localStorage if API fails
+      const storedPersonas = getPersonasFromLocalStorage();
+      if (storedPersonas.length > 0) {
+        currentPersonas = storedPersonas;
+        if (!activeSenderId) {
+          activeSenderId = currentPersonas[0].id;
+        }
+        renderPersonas();
+      }
     }
   }
 
@@ -849,13 +1305,27 @@ document.addEventListener('DOMContentLoaded', () => {
     currentPersonas.forEach(persona => {
       const card = document.createElement('div');
       card.className = 'card persona-card';
+      
+      // Format creation date
+      const createdDate = persona.createdAt 
+        ? new Date(persona.createdAt).toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+          })
+        : 'Unknown';
+      
       card.innerHTML = `
         <div class="persona-header">
-          <h3>${persona.avatarIcon} ${persona.name}</h3>
+          <h3 style="color: ${persona.color || '#000000'};">${persona.avatarIcon} ${persona.name}</h3>
           <div class="persona-actions">
             <button class="icon-btn persona-edit-btn" data-id="${persona.id}" title="Edit persona"><i class="fas fa-pen"></i></button>
             <button class="icon-btn persona-delete-btn" data-id="${persona.id}" title="Delete persona"><i class="fas fa-trash"></i></button>
           </div>
+        </div>
+        <div class="persona-meta">
+          <span class="persona-color-badge" style="background-color: ${persona.color || '#000000'};"></span>
+          <span class="persona-created">Created ${createdDate}</span>
         </div>
       `;
       personasList.appendChild(card);
@@ -865,7 +1335,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.persona-edit-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const personaId = e.target.getAttribute('data-id');
+        const personaId = e.currentTarget.getAttribute('data-id');
         openEditPersonaModal(personaId);
       });
     });
@@ -873,7 +1343,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.persona-delete-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const personaId = e.target.getAttribute('data-id');
+        const personaId = e.currentTarget.getAttribute('data-id');
         confirmDeletePersona(personaId);
       });
     });
@@ -914,136 +1384,183 @@ document.addEventListener('DOMContentLoaded', () => {
       console.warn('renderMessages called with invalid messages:', messages);
       return;
     }
+    
+    // Cache messages for optimistic UI updates
+    currentJournalMessages = messages;
+    
     messages.forEach(msg => {
-      // Skip permanently deleted messages (after undo window)
-      if (msg.permanentlyDeleted) return;
-
-      const div = document.createElement('div');
-      div.className = 'message';
-      div.setAttribute('data-message-id', msg.id);
-
-      // Check if it's an AI message or AI query
-      const isAI = msg.personaName.includes('AI Assistant') || msg.personaId === 'ai_assistant';
-      const isAIQuery = msg.content.startsWith('@');
-      const hasImage = msg.imageUrl;
-      const isDeleted = msg.deleted;
-
-      if (isAI) {
-        div.classList.add('ai-message');
-      } else if (isAIQuery) {
-        div.classList.add('user-ai-query');
+      const messageDiv = createMessageElement(msg, messages);
+      if (messageDiv) {
+        entryMessages.appendChild(messageDiv);
       }
-      
-      if (hasImage) {
-        div.classList.add('has-image');
-      }
-
-      if (isDeleted) {
-        div.classList.add('deleted');
-      }
-
-      div.style.alignSelf = 'center';
-      
-      // Build reply preview if message is a reply
-      let replyHtml = '';
-      if (msg.replyTo) {
-        const repliedMsg = messages.find(m => m.id === msg.replyTo);
-        if (repliedMsg) {
-          replyHtml = `
-            <div class="reply-preview" onclick="scrollToMessage('${msg.replyTo}')">
-              <div class="reply-preview-author">${repliedMsg.personaName}</div>
-              <div class="reply-preview-text">${repliedMsg.content.substring(0, 50)}${repliedMsg.content.length > 50 ? '...' : ''}</div>
-            </div>
-          `;
-        }
-      }
-      
-      const imageHtml = hasImage ? `<img src="${msg.imageUrl}" alt="Uploaded image" class="message-image" onclick="showImageFullscreen('${msg.imageUrl}')">` : '';
-      
-      // Build content (show placeholder if deleted)
-      const messageText = isDeleted ? '<em>This message was deleted</em>' : msg.content;
-      const editedIndicator = msg.edited && !isDeleted ? '<span class="message-edited">(edited)</span>' : '';
-
-      // Build reactions display
-      let reactionsHtml = '';
-      if (msg.reactions && msg.reactions.length > 0 && !isDeleted) {
-        const reactionGroups = {};
-        msg.reactions.forEach(r => {
-          if (!reactionGroups[r.emoji]) {
-            reactionGroups[r.emoji] = [];
-          }
-          reactionGroups[r.emoji].push(r.personaId);
-        });
-
-        const currentPersonaId = activeSenderId;
-        reactionsHtml = '<div class="message-reactions">';
-        Object.entries(reactionGroups).forEach(([emoji, personaIds]) => {
-          const isMine = personaIds.includes(currentPersonaId);
-          reactionsHtml += `
-            <span class="message-reaction ${isMine ? 'my-reaction' : ''}" onclick="toggleReaction('${msg.id}', '${emoji}')">
-              <span class="message-reaction-emoji">${emoji}</span>
-              <span class="message-reaction-count">${personaIds.length}</span>
-            </span>
-          `;
-        });
-        reactionsHtml += '</div>';
-      }
-
-      const pColor = msg.personaColor
-        || currentPersonas.find(p => p.id === msg.personaId)?.color
-        || '#555555';
-      // AI gets a FA icon; all other personas keep their emoji
-      const avatarHtml = msg.personaFaIcon
-        ? `<i class="fas ${msg.personaFaIcon}"></i>`
-        : (msg.personaIcon || '<i class="fas fa-user"></i>');
-
-      const timeString = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-      div.innerHTML = `
-        <div class="message-avatar" style="border-color: ${pColor}; color: ${pColor};">${avatarHtml}</div>
-        <div class="message-body">
-          <div class="message-header">
-            <span class="message-name" style="color: ${pColor};">${msg.personaName}</span>
-            <span class="message-time">${timeString}</span>
-          </div>
-          <div class="message-content" style="border-color: ${pColor};">
-            ${replyHtml}
-            ${messageText}${editedIndicator}
-            ${imageHtml}
-          </div>
-          ${reactionsHtml}
-        </div>
-      `;
-
-      // Add context menu on right-click and long-press (mobile)
-      if (!isDeleted) {
-        div.addEventListener('contextmenu', (e) => {
-          e.preventDefault();
-          showMessageContextMenu(e, msg);
-        });
-
-        // Long-press for mobile
-        let pressTimer;
-        div.addEventListener('touchstart', (e) => {
-          pressTimer = setTimeout(() => {
-            showMessageContextMenu(e, msg);
-          }, 500);
-        });
-
-        div.addEventListener('touchend', () => {
-          clearTimeout(pressTimer);
-        });
-
-        div.addEventListener('touchmove', () => {
-          clearTimeout(pressTimer);
-        });
-      }
-
-      entryMessages.appendChild(div);
     });
   }
 
+  // Helper function to create a single message element (for optimistic UI)
+  function createMessageElement(msg, allMessages = []) {
+    // Skip permanently deleted messages (after undo window)
+    if (msg.permanentlyDeleted) return null;
+
+    const div = document.createElement('div');
+    div.className = 'message';
+    div.setAttribute('data-message-id', msg.id);
+
+    // Check if it's an AI message or AI query
+    const isAI = msg.personaName.includes('AI Assistant') || msg.personaId === 'ai_assistant';
+    const isAIQuery = msg.content.startsWith('@');
+    const hasImages = msg.imageUrls && msg.imageUrls.length > 0;
+    const hasImage = msg.imageUrl; // Legacy single image support
+    const isDeleted = msg.deleted;
+
+    if (isAI) {
+      div.classList.add('ai-message');
+    } else if (isAIQuery) {
+      div.classList.add('user-ai-query');
+    }
+    
+    if (hasImages || hasImage) {
+      div.classList.add('has-image');
+    }
+
+    if (isDeleted) {
+      div.classList.add('deleted');
+    }
+
+    div.style.alignSelf = 'center';
+    
+    // Build reply preview if message is a reply
+    let replyHtml = '';
+    if (msg.replyTo) {
+      const repliedMsg = allMessages.find(m => m.id === msg.replyTo);
+      if (repliedMsg) {
+        replyHtml = `
+          <div class="reply-preview" onclick="scrollToMessage('${msg.replyTo}')">
+            <div class="reply-preview-author">${repliedMsg.personaName}</div>
+            <div class="reply-preview-text">${repliedMsg.content.substring(0, 50)}${repliedMsg.content.length > 50 ? '...' : ''}</div>
+          </div>
+        `;
+      }
+    }
+    
+    // Build images HTML for multiple images or legacy single image
+    let imagesHtml = '';
+    if (hasImages) {
+      imagesHtml = '<div class="message-images">';
+      msg.imageUrls.forEach(url => {
+        imagesHtml += `<img src="${url}" alt="Uploaded image" class="message-image" onclick="showImageFullscreen('${url}')">`;
+      });
+      imagesHtml += '</div>';
+    } else if (hasImage) {
+      // Legacy single image support
+      imagesHtml = `<img src="${msg.imageUrl}" alt="Uploaded image" class="message-image" onclick="showImageFullscreen('${msg.imageUrl}')">`;
+    }
+    
+    // Build content (show placeholder if deleted)
+    const messageText = isDeleted ? '<em>This message was deleted</em>' : msg.content;
+    const editedIndicator = msg.edited && !isDeleted ? '<span class="message-edited">(edited)</span>' : '';
+
+    // Build reactions display
+    let reactionsHtml = '';
+    if (msg.reactions && msg.reactions.length > 0 && !isDeleted) {
+      const reactionGroups = {};
+      msg.reactions.forEach(r => {
+        if (!reactionGroups[r.emoji]) {
+          reactionGroups[r.emoji] = [];
+        }
+        reactionGroups[r.emoji].push(r.personaId);
+      });
+
+      const currentPersonaId = activeSenderId;
+      reactionsHtml = '<div class="message-reactions">';
+      Object.entries(reactionGroups).forEach(([emoji, personaIds]) => {
+        const isMine = personaIds.includes(currentPersonaId);
+        reactionsHtml += `
+          <span class="message-reaction ${isMine ? 'my-reaction' : ''}" onclick="toggleReaction('${msg.id}', '${emoji}')">
+            <span class="message-reaction-emoji">${emoji}</span>
+            <span class="message-reaction-count">${personaIds.length}</span>
+          </span>
+        `;
+      });
+      reactionsHtml += '</div>';
+    }
+
+    const pColor = msg.personaColor
+      || currentPersonas.find(p => p.id === msg.personaId)?.color
+      || '#555555';
+    // AI gets a FA icon; all other personas keep their emoji
+    const avatarHtml = msg.personaFaIcon
+      ? `<i class="fas ${msg.personaFaIcon}"></i>`
+      : (msg.personaIcon || '<i class="fas fa-user"></i>');
+
+    const timeString = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    div.innerHTML = `
+      <div class="message-avatar" style="border-color: ${pColor}; color: ${pColor};">${avatarHtml}</div>
+      <div class="message-body">
+        <div class="message-header">
+          <span class="message-name" style="color: ${pColor};">${msg.personaName}</span>
+          <span class="message-time">${timeString}</span>
+        </div>
+        <div class="message-content" style="border-color: ${pColor};">
+          ${replyHtml}
+          ${messageText}${editedIndicator}
+          ${imagesHtml}
+        </div>
+        ${reactionsHtml}
+      </div>
+    `;
+
+    // Add context menu on right-click and long-press (mobile)
+    if (!isDeleted) {
+      div.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        showMessageContextMenu(e, msg);
+      });
+
+      // Long-press for mobile
+      let pressTimer;
+      div.addEventListener('touchstart', (e) => {
+        pressTimer = setTimeout(() => {
+          showMessageContextMenu(e, msg);
+        }, 500);
+      });
+
+      div.addEventListener('touchend', () => {
+        clearTimeout(pressTimer);
+      });
+
+      div.addEventListener('touchmove', () => {
+        clearTimeout(pressTimer);
+      });
+    }
+
+    return div;
+  }
+
   // Removed persona selector update functions
+
+  // Get messages within character limit (counting backwards)
+  function getMessagesWithinCharLimit(messages, charLimit = 10000) {
+    const selectedMessages = [];
+    let totalChars = 0;
+
+    // Start from the end and work backwards
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      const formattedContent = `${msg.personaName} said: ${msg.content}`;
+      const messageLength = formattedContent.length;
+
+      // Check if adding this message would exceed limit
+      if (totalChars + messageLength > charLimit && selectedMessages.length > 0) {
+        break; // Stop adding messages
+      }
+
+      selectedMessages.unshift(msg); // Add to beginning to maintain order
+      totalChars += messageLength;
+    }
+
+    return selectedMessages;
+  }
 
   // Handle AI Message
   async function handleAIMessage(userPrompt) {
@@ -1070,13 +1587,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const jRes = await fetch(`/api/journals/${activeJournalId}`);
       const journal = await jRes.json();
 
-      // Get last 5 messages for context
-      const recentMessages = journal.messages.slice(-5);
+      // Get messages within 10,000 character limit
+      const recentMessages = getMessagesWithinCharLimit(journal.messages, 10000);
 
-      // Format messages for AI API
+      // Format messages for AI API with persona names
       const contextMessages = recentMessages.map(msg => ({
         role: 'user',
-        content: `${msg.personaName}: ${msg.content}`,
+        content: `${msg.personaName} said: ${msg.content}`,
         timestamp: msg.timestamp
       }));
 
@@ -1146,25 +1663,111 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Image Upload Handlers
-  imageUploadBtn.addEventListener('click', () => {
-    imageInput.click();
+  const MAX_IMAGES = 5;
+  let uploadingCount = 0;
+
+  // Toggle image options menu
+  imageBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    imageOptionsMenu.classList.toggle('hidden');
+  });
+
+  // Close menu when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!imageOptionsMenu.classList.contains('hidden') && 
+        !imageOptionsMenu.contains(e.target) && 
+        e.target !== imageBtn) {
+      imageOptionsMenu.classList.add('hidden');
+    }
+  });
+
+  // Handle image option selection
+  imageOptionsMenu.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.image-option-btn');
+    if (!btn) return;
+    
+    const action = btn.getAttribute('data-action');
+    imageOptionsMenu.classList.add('hidden');
+    
+    if (uploadedImageUrls.length >= MAX_IMAGES) {
+      alert(`Maximum ${MAX_IMAGES} images allowed`);
+      return;
+    }
+    
+    if (action === 'camera') {
+      await openCamera();
+    } else if (action === 'upload') {
+      imageInput.click();
+    }
   });
 
   imageInput.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
 
-    selectedImageFile = file;
+    // Check if adding these would exceed max
+    const totalImages = uploadedImageUrls.length + files.length;
+    if (totalImages > MAX_IMAGES) {
+      alert(`You can only upload up to ${MAX_IMAGES} images. You have ${uploadedImageUrls.length} already.`);
+      imageInput.value = '';
+      return;
+    }
 
+    // Disable send button while uploading
+    sendMessageBtn.disabled = true;
+    sendMessageBtn.style.opacity = '0.5';
+    sendMessageBtn.style.cursor = 'not-allowed';
+
+    for (const file of files) {
+      await uploadSingleImage(file);
+    }
+
+    // Re-enable send button after all uploads
+    sendMessageBtn.disabled = false;
+    sendMessageBtn.style.opacity = '1';
+    sendMessageBtn.style.cursor = 'pointer';
+    
+    imageInput.value = '';
+  });
+
+  async function uploadSingleImage(file) {
+    uploadingCount++;
+    
+    // Create preview container
+    const imageId = `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const imageDiv = document.createElement('div');
+    imageDiv.className = 'image-attachment';
+    imageDiv.setAttribute('data-image-id', imageId);
+    
+    const img = document.createElement('img');
+    img.className = 'attachment-image';
+    
+    const overlay = document.createElement('div');
+    overlay.className = 'attachment-overlay';
+    
+    const status = document.createElement('span');
+    status.className = 'attachment-status';
+    status.innerHTML = '<i class="fas fa-upload"></i> Uploading...';
+    overlay.appendChild(status);
+    
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove-attachment-btn';
+    removeBtn.title = 'Remove image';
+    removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+    
+    imageDiv.appendChild(img);
+    imageDiv.appendChild(overlay);
+    imageDiv.appendChild(removeBtn);
+    
     // Show preview immediately
     const reader = new FileReader();
     reader.onload = (event) => {
-      attachmentImage.src = event.target.result;
-      showAttachmentPreview('image');
-      attachmentStatus.innerHTML = '<i class="fas fa-upload"></i> Uploading...';
-      attachmentOverlay.classList.remove('success', 'error');
+      img.src = event.target.result;
     };
     reader.readAsDataURL(file);
+    
+    imagesContainer.appendChild(imageDiv);
+    showAttachmentPreview('images');
 
     // Start async upload
     try {
@@ -1179,53 +1782,168 @@ document.addEventListener('DOMContentLoaded', () => {
       const uploadData = await uploadRes.json();
 
       if (!uploadData.success) {
-        attachmentStatus.innerHTML = '<i class="fas fa-times-circle"></i> Upload failed';
-        attachmentOverlay.classList.add('error');
+        status.innerHTML = '<i class="fas fa-times-circle"></i> Failed';
+        overlay.classList.add('error');
         setTimeout(() => {
-          clearImageAttachment();
+          imageDiv.remove();
+          checkAttachmentPreviewVisibility();
         }, 2000);
+        uploadingCount--;
         return;
       }
 
-      // Store uploaded URL
-      uploadedImageUrl = uploadData.url;
-      attachmentStatus.innerHTML = '<i class="fas fa-check-circle"></i> Ready to send';
-      attachmentOverlay.classList.add('success');
+      // Store uploaded URL with image ID
+      uploadedImageUrls.push({
+        id: imageId,
+        url: uploadData.url
+      });
+      
+      status.innerHTML = '<i class="fas fa-check-circle"></i> Ready';
+      overlay.classList.add('success');
       
       // Hide overlay after 1 second
       setTimeout(() => {
-        if (attachmentOverlay) {
-          attachmentOverlay.style.display = 'none';
-        }
+        overlay.style.display = 'none';
       }, 1000);
+      
+      // Add remove handler
+      removeBtn.addEventListener('click', () => {
+        removeImage(imageId);
+      });
 
     } catch (e) {
       console.error('Failed to upload image:', e);
-      attachmentStatus.innerHTML = '<i class="fas fa-times-circle"></i> Upload failed';
-      attachmentOverlay.classList.add('error');
+      status.innerHTML = '<i class="fas fa-times-circle"></i> Failed';
+      overlay.classList.add('error');
       setTimeout(() => {
-        clearImageAttachment();
+        imageDiv.remove();
+        checkAttachmentPreviewVisibility();
       }, 2000);
     }
-  });
+    
+    uploadingCount--;
+  }
 
-  // Remove image attachment
-  removeImageBtn.addEventListener('click', () => {
-    clearImageAttachment();
-  });
-
-  function clearImageAttachment() {
-    imageAttachment.classList.add('hidden');
-    attachmentImage.src = '';
-    selectedImageFile = null;
-    uploadedImageUrl = null;
-    imageInput.value = '';
-    if (attachmentOverlay) {
-      attachmentOverlay.style.display = 'flex';
-      attachmentOverlay.classList.remove('success', 'error');
+  function removeImage(imageId) {
+    // Remove from uploaded URLs array
+    uploadedImageUrls = uploadedImageUrls.filter(img => img.id !== imageId);
+    
+    // Remove from DOM
+    const imageDiv = imagesContainer.querySelector(`[data-image-id="${imageId}"]`);
+    if (imageDiv) {
+      imageDiv.remove();
     }
+    
     checkAttachmentPreviewVisibility();
   }
+
+  function clearImageAttachments() {
+    imagesContainer.innerHTML = '';
+    uploadedImageUrls = [];
+    imageInput.value = '';
+    imagesContainer.classList.add('hidden');
+    checkAttachmentPreviewVisibility();
+  }
+
+  // ===== CAMERA FUNCTIONALITY =====
+  let cameraStream = null;
+  let currentFacingMode = 'user'; // 'user' for front camera, 'environment' for back camera
+
+  async function openCamera() {
+    try {
+      cameraModal.classList.remove('hidden');
+      
+      // Request camera access
+      cameraStream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          facingMode: currentFacingMode,
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        }
+      });
+      
+      cameraVideo.srcObject = cameraStream;
+      
+      // Hide switch camera button on desktop (only one camera typically)
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      if (videoDevices.length <= 1) {
+        switchCameraBtn.style.display = 'none';
+      }
+      
+    } catch (error) {
+      console.error('Camera access error:', error);
+      alert('Could not access camera. Please check permissions.');
+      closeCamera();
+    }
+  }
+
+  function closeCamera() {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      cameraStream = null;
+    }
+    cameraVideo.srcObject = null;
+    cameraModal.classList.add('hidden');
+  }
+
+  closeCameraBtn.addEventListener('click', closeCamera);
+
+  // Close camera when clicking outside modal
+  cameraModal.addEventListener('click', (e) => {
+    if (e.target === cameraModal) {
+      closeCamera();
+    }
+  });
+
+  switchCameraBtn.addEventListener('click', async () => {
+    // Toggle between front and back camera
+    currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+    closeCamera();
+    await openCamera();
+  });
+
+  capturePhotoBtn.addEventListener('click', async () => {
+    if (!cameraStream) return;
+    
+    // Set canvas size to match video
+    const videoWidth = cameraVideo.videoWidth;
+    const videoHeight = cameraVideo.videoHeight;
+    cameraCanvas.width = videoWidth;
+    cameraCanvas.height = videoHeight;
+    
+    // Draw current video frame to canvas
+    const context = cameraCanvas.getContext('2d');
+    context.drawImage(cameraVideo, 0, 0, videoWidth, videoHeight);
+    
+    // Convert canvas to blob
+    cameraCanvas.toBlob(async (blob) => {
+      if (!blob) {
+        alert('Failed to capture photo');
+        return;
+      }
+      
+      // Create a file from the blob
+      const file = new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      
+      // Close camera
+      closeCamera();
+      
+      // Disable send button while uploading
+      sendMessageBtn.disabled = true;
+      sendMessageBtn.style.opacity = '0.5';
+      sendMessageBtn.style.cursor = 'not-allowed';
+      
+      // Upload the captured photo
+      await uploadSingleImage(file);
+      
+      // Re-enable send button
+      sendMessageBtn.disabled = false;
+      sendMessageBtn.style.opacity = '1';
+      sendMessageBtn.style.cursor = 'pointer';
+      
+    }, 'image/jpeg', 0.9);
+  });
 
   // Remove reply attachment
   removeReplyBtn.addEventListener('click', () => {
@@ -1244,11 +1962,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function showAttachmentPreview(type) {
     attachmentPreview.classList.remove('hidden');
     
-    if (type === 'image') {
-      imageAttachment.classList.remove('hidden');
-      if (attachmentOverlay) {
-        attachmentOverlay.style.display = 'flex';
-      }
+    if (type === 'images') {
+      imagesContainer.classList.remove('hidden');
     } else if (type === 'reply') {
       replyAttachment.classList.remove('hidden');
     }
@@ -1256,11 +1971,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Check if we should hide the preview area
   function checkAttachmentPreviewVisibility() {
-    const hasImage = !imageAttachment.classList.contains('hidden');
+    const hasImages = uploadedImageUrls.length > 0;
     const hasReply = !replyAttachment.classList.contains('hidden');
     
-    if (!hasImage && !hasReply) {
+    if (!hasImages && !hasReply) {
       attachmentPreview.classList.add('hidden');
+      imagesContainer.classList.add('hidden');
     }
   }
 
@@ -1280,9 +1996,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Allow sending if there's text, image, or both
     const hasContent = messageInput.value.trim();
-    const hasImage = uploadedImageUrl;
+    const hasImages = uploadedImageUrls.length > 0;
     
-    if (!hasContent && !hasImage) return;
+    if (!hasContent && !hasImages) return;
 
     const content = messageInput.value.trim();
     const editingId = messageInput.getAttribute('data-editing-id');
@@ -1352,7 +2068,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const persona = currentPersonas.find(p => p.id === finalPersonaId);
     if (!persona) return;
 
-    if (!finalContent && !uploadedImageUrl) return;
+    if (!finalContent && uploadedImageUrls.length === 0) return;
 
     const newMessage = {
       id: `msg_${Date.now()}`,
@@ -1360,13 +2076,13 @@ document.addEventListener('DOMContentLoaded', () => {
       personaName: persona.name,
       personaColor: persona.color,
       personaIcon: persona.avatarIcon,
-      content: finalContent || '', // Allow empty content if there's an image
+      content: finalContent || '', // Allow empty content if there are images
       timestamp: new Date().toISOString()
     };
 
-    // Add image URL if uploaded
-    if (uploadedImageUrl) {
-      newMessage.imageUrl = uploadedImageUrl;
+    // Add image URLs if uploaded
+    if (uploadedImageUrls.length > 0) {
+      newMessage.imageUrls = uploadedImageUrls.map(img => img.url);
     }
 
     // Add reply reference if replying to a message
@@ -1374,10 +2090,29 @@ document.addEventListener('DOMContentLoaded', () => {
       newMessage.replyTo = replyingToMessage.id;
     }
 
+    // ===== OPTIMISTIC UI UPDATE =====
+    // Clear input and attachments immediately for instant feedback
+    const savedInput = messageInput.value;
+    const savedImages = [...uploadedImageUrls];
+    const savedReply = replyingToMessage;
+    
+    messageInput.value = '';
+    clearReplyAttachment();
+    clearImageAttachments();
+    
+    // Add message to UI immediately using cached messages (optimistic)
+    const messageDiv = createMessageElement(newMessage, currentJournalMessages);
+    if (messageDiv) {
+      entryMessages.appendChild(messageDiv);
+      // Scroll to bottom immediately
+      entryMessages.scrollTop = entryMessages.scrollHeight;
+    }
+
     try {
-      // Fetch current journal to append
+      // Now fetch and update backend in background
       const jRes = await fetch(`/api/journals/${activeJournalId}`);
       const journal = await jRes.json();
+      
       journal.messages.push(newMessage);
 
       const updateRes = await fetch(`/api/journals/${activeJournalId}`, {
@@ -1386,14 +2121,26 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(journal)
       });
 
-      if (updateRes.ok) {
-        messageInput.value = '';
-        clearReplyAttachment();
-        clearImageAttachment();
-        openJournal(activeJournalId); // re-render
+      if (!updateRes.ok) {
+        // If backend fails, remove the optimistic message and restore input
+        if (messageDiv) messageDiv.remove();
+        messageInput.value = savedInput;
+        uploadedImageUrls = savedImages;
+        replyingToMessage = savedReply;
+        console.error('Failed to send message to server');
+        alert('Failed to send message. Please try again.');
+      } else {
+        // Update cache with new message
+        currentJournalMessages.push(newMessage);
       }
     } catch (e) {
-      console.error('Failed to send message');
+      // If error occurs, remove optimistic message and restore input
+      if (messageDiv) messageDiv.remove();
+      messageInput.value = savedInput;
+      uploadedImageUrls = savedImages;
+      replyingToMessage = savedReply;
+      console.error('Failed to send message:', e);
+      alert('Failed to send message. Please try again.');
     }
   });
 
@@ -1410,21 +2157,29 @@ document.addEventListener('DOMContentLoaded', () => {
     updateMentionsDropdown();
   }
 
+  let inputHasFocus = false;
+
   // Show dropdown when focusing the input if there's an @
   messageInput.addEventListener('focus', () => {
-    messageInput.dispatchEvent(new Event('input'));
+    inputHasFocus = true;
+    // Trigger input processing after setting focus flag
+    setTimeout(() => {
+      messageInput.dispatchEvent(new Event('input'));
+    }, 0);
   });
 
   // Hide dropdown when leaving the input, with a delay to allow clicks
   messageInput.addEventListener('blur', () => {
     setTimeout(() => {
+      inputHasFocus = false;
       mentionActive = false;
       updateMentionsDropdown();
     }, 200);
   });
 
   function updateMentionsDropdown() {
-    if (!mentionActive) {
+    // Only show dropdown if input has focus AND mention is active
+    if (!mentionActive || !inputHasFocus) {
       mentionsDropdown.classList.add('hidden');
       return;
     }
@@ -1432,7 +2187,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Filter options based on query
     const query = mentionQuery.toLowerCase();
     mentionOptions = [
-      { id: 'ai_assistant', name: 'AI Assistant', icon: 'fa-robot', color: '#6B46C1' },
+      { id: 'ai_assistant', name: 'AI Assistant', icon: 'fa-robot', color: '#4facfe' },
       ...currentPersonas
     ].filter(p => p.name.toLowerCase().includes(query));
 
@@ -1607,14 +2362,22 @@ document.addEventListener('DOMContentLoaded', () => {
       const color = document.getElementById('new-p-color').value;
       if (!name) return;
       try {
-        await fetch('/api/personas', {
+        const res = await fetch('/api/personas', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, color: color, avatarIcon: icon })
         });
+        const newPersona = await res.json();
+        
+        // Add to currentPersonas and save to localStorage
+        currentPersonas.push(newPersona);
+        savePersonasToLocalStorage(currentPersonas);
+        
         hideModal();
         loadPersonas();
-      } catch (e) {}
+      } catch (e) {
+        console.error('Failed to create persona:', e);
+      }
     });
   });
 
@@ -1659,6 +2422,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (res.ok) {
           hideModal();
+          
+          // Update currentPersonas and save to localStorage
+          const updatedPersona = currentPersonas.find(p => p.id === personaId);
+          if (updatedPersona) {
+            updatedPersona.name = name;
+            updatedPersona.avatarIcon = icon;
+            updatedPersona.color = color;
+            savePersonasToLocalStorage(currentPersonas);
+          }
+          
           loadPersonas();
         } else {
           const error = await res.json();
@@ -1822,6 +2595,96 @@ document.addEventListener('DOMContentLoaded', () => {
     reactionPicker.classList.remove('hidden');
   }
 
+  // Initialize Reaction Picker with stored emojis
+  const MAX_CUSTOM_EMOJIS = 6;
+  
+  function loadReactionEmojis() {
+    const stored = localStorage.getItem('reactionEmojis');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {
+        return ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+      }
+    }
+    return ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+  }
+
+  function saveReactionEmojis(emojis) {
+    localStorage.setItem('reactionEmojis', JSON.stringify(emojis));
+  }
+
+  function renderReactionPicker() {
+    const emojis = loadReactionEmojis();
+    const reactionButtons = reactionPicker.querySelectorAll('.reaction-btn');
+    
+    // Update existing buttons with current emoji list
+    emojis.forEach((emoji, index) => {
+      if (reactionButtons[index]) {
+        reactionButtons[index].setAttribute('data-emoji', emoji);
+        reactionButtons[index].textContent = emoji;
+      }
+    });
+  }
+
+  // Move emoji to front (LIFO) when used
+  function moveEmojiToFront(emoji) {
+    let emojis = loadReactionEmojis();
+    
+    // Remove emoji if it exists
+    emojis = emojis.filter(e => e !== emoji);
+    
+    // Add to front
+    emojis.unshift(emoji);
+    
+    // Keep only MAX_CUSTOM_EMOJIS
+    emojis = emojis.slice(0, MAX_CUSTOM_EMOJIS);
+    
+    saveReactionEmojis(emojis);
+    renderReactionPicker();
+  }
+
+  // Initialize on load
+  renderReactionPicker();
+
+  // Add Emoji from Clipboard Button Handler
+  document.getElementById('add-emoji-btn').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    
+    try {
+      // Try to read from clipboard
+      const text = await navigator.clipboard.readText();
+      
+      // Extract first emoji from clipboard (simple emoji regex)
+      const emojiRegex = /(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)/gu;
+      const match = text.match(emojiRegex);
+      
+      if (match && match[0]) {
+        const emoji = match[0];
+        moveEmojiToFront(emoji);
+        
+        // Show feedback
+        const btn = e.currentTarget;
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+        btn.style.color = '#22c55e';
+        
+        setTimeout(() => {
+          btn.innerHTML = originalHTML;
+          btn.style.color = '';
+        }, 1000);
+      } else {
+        alert('No emoji found in clipboard. Copy an emoji first, then click + to add it.');
+      }
+    } catch (err) {
+      // Fallback: prompt user to paste manually
+      const emoji = prompt('Paste an emoji:');
+      if (emoji && emoji.trim()) {
+        moveEmojiToFront(emoji.trim());
+      }
+    }
+  });
+
   // Reaction Picker Handlers
   reactionPicker.querySelectorAll('.reaction-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
@@ -1829,6 +2692,8 @@ document.addEventListener('DOMContentLoaded', () => {
       reactionPicker.classList.add('hidden');
       
       if (contextMenuTarget) {
+        // Move used emoji to front (LIFO)
+        moveEmojiToFront(emoji);
         await toggleReaction(contextMenuTarget.id, emoji);
       }
     });
@@ -1976,6 +2841,281 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {
       console.error('Failed to undo delete:', e);
     }
+  }
+
+// --- Analytics Logic ---
+  const statStreak = document.getElementById('stat-streak');
+  const statTopPersona = document.getElementById('stat-top-persona');
+  const statActiveDay = document.getElementById('stat-active-day');
+  const statTotalMsgs = document.getElementById('stat-total-msgs');
+  const statTotalImgs = document.getElementById('stat-total-imgs');
+  const statTotalStars = document.getElementById('stat-total-stars');
+  const statTotalReacts = document.getElementById('stat-total-reacts');
+  const activityChart = document.getElementById('activity-chart');
+  const generateInsightBtn = document.getElementById('generate-insight-btn');
+  const insightsList = document.getElementById('insights-list');
+
+  async function loadAnalytics() {
+    try {
+      const [journalsRes, personasRes, insightsRes] = await Promise.all([
+        fetch('/api/journals'),
+        fetch('/api/personas'),
+        fetch('/api/insights')
+      ]);
+      const journals = await journalsRes.json();
+      const personas = await personasRes.json();
+      const insights = await insightsRes.json();
+      
+      calculateStats(journals, personas);
+      renderInsights(insights);
+    } catch (e) {
+      console.error('Failed to load analytics data', e);
+    }
+  }
+
+  function calculateStats(journals, personas) {
+    if (!journals.length) {
+      statStreak.textContent = '0 days';
+      statTopPersona.textContent = '-';
+      statActiveDay.textContent = '-';
+      statTotalMsgs.textContent = '0';
+      statTotalImgs.textContent = '0';
+      statTotalStars.textContent = '0';
+      statTotalReacts.textContent = '0';
+      activityChart.innerHTML = '';
+      return;
+    }
+
+    // Sort journals by date (oldest to newest)
+    const sortedJournals = [...journals].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // Calculate Streak
+    let currentStreak = 0;
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    
+    let lastDate = null;
+    let streakCount = 0;
+    for (const j of sortedJournals) {
+      if (lastDate) {
+        const diff = (new Date(j.date) - new Date(lastDate)) / 86400000;
+        if (diff === 1) streakCount++;
+        else if (diff > 1) streakCount = 1; // reset
+      } else {
+        streakCount = 1;
+      }
+      lastDate = j.date;
+    }
+    
+    if (lastDate === today || lastDate === yesterday) {
+      currentStreak = streakCount;
+    } else {
+      currentStreak = 0;
+    }
+    statStreak.textContent = `${currentStreak} days`;
+
+    // Persona & Day activity, plus totals
+    const personaCounts = {};
+    const dayCounts = { 'Sun': 0, 'Mon': 0, 'Tue': 0, 'Wed': 0, 'Thu': 0, 'Fri': 0, 'Sat': 0 };
+    const dateCounts = {};
+    
+    let totalMsgs = 0;
+    let totalImgs = 0;
+    let totalStars = 0;
+    let totalReacts = 0;
+
+    journals.forEach(j => {
+      const d = new Date(j.date);
+      const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
+      
+      if (j.isSpecial) totalStars++;
+      
+      let msgCount = 0;
+      if (j.messages && j.messages.length > 0) {
+        msgCount = j.messages.length;
+        totalMsgs += msgCount;
+        
+        j.messages.forEach(m => {
+          if (m.imageUrl) totalImgs++;
+          if (m.reactions && m.reactions.length > 0) totalReacts += m.reactions.length;
+          
+          if (m.personaId !== 'ai_assistant') {
+            personaCounts[m.personaId] = (personaCounts[m.personaId] || 0) + 1;
+          }
+        });
+      }
+      dayCounts[dayName] += msgCount;
+      dateCounts[j.date] = (dateCounts[j.date] || 0) + msgCount;
+    });
+    
+    statTotalMsgs.textContent = totalMsgs;
+    statTotalImgs.textContent = totalImgs;
+    statTotalStars.textContent = totalStars;
+    statTotalReacts.textContent = totalReacts;
+
+    // Top Persona
+    let topId = null;
+    let maxMsgs = 0;
+    for (const [id, count] of Object.entries(personaCounts)) {
+      if (count > maxMsgs) {
+        topId = id;
+        maxMsgs = count;
+      }
+    }
+    if (topId) {
+      const p = personas.find(x => x.id === topId);
+      statTopPersona.textContent = p ? p.name : 'Unknown';
+    } else {
+      statTopPersona.textContent = '-';
+    }
+
+    // Most Active Day
+    let topDay = null;
+    let maxDayMsgs = 0;
+    for (const [day, count] of Object.entries(dayCounts)) {
+      if (count > maxDayMsgs) {
+        topDay = day;
+        maxDayMsgs = count;
+      }
+    }
+    statActiveDay.textContent = topDay || '-';
+
+    // Activity Chart (last 7 days)
+    activityChart.innerHTML = '';
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      last7Days.push(d.toISOString().split('T')[0]);
+    }
+    
+    let maxCount = Math.max(...last7Days.map(d => dateCounts[d] || 0), 1);
+    
+    // ROYGBIV thresholds and colors (each band = 5 messages)
+    const roygbiv = [
+      { limit: 5,  color: '#FF4444' }, // Red
+      { limit: 10, color: '#FF8C00' }, // Orange
+      { limit: 15, color: '#FFD700' }, // Yellow
+      { limit: 20, color: '#44CC44' }, // Green
+      { limit: 25, color: '#4488FF' }, // Blue
+      { limit: 30, color: '#4B0082' }, // Indigo
+      { limit: 35, color: '#9400D3' }, // Violet
+    ];
+    const MAX_SCALE = 35; // treat 35+ as full bar
+
+    last7Days.forEach(date => {
+      const count = dateCounts[date] || 0;
+      const totalHeight = Math.max(count, 1);
+      const barHeightPercent = Math.min((count / Math.max(maxCount, MAX_SCALE)) * 100, 100);
+      const shortDay = new Date(date).toLocaleDateString('en-US', { weekday: 'short' });
+
+      const barContainer = document.createElement('div');
+      barContainer.className = 'chart-bar-container';
+
+      const bar = document.createElement('div');
+      bar.className = 'chart-bar';
+      bar.style.height = '0%';
+      bar.setAttribute('data-val', count);
+
+      // Build stacked segments
+      let prev = 0;
+      roygbiv.forEach(({ limit, color }) => {
+        if (count <= prev) return; // this band is not reached
+        const bandStart = prev;
+        const bandEnd = Math.min(count, limit);
+        const bandCount = bandEnd - bandStart;
+        const segHeightPercent = (bandCount / Math.max(maxCount, MAX_SCALE)) * 100;
+
+        const seg = document.createElement('div');
+        seg.className = 'chart-segment';
+        seg.style.background = color;
+        seg.style.height = '0px';
+        // animate after paint
+        setTimeout(() => {
+          seg.style.height = `${segHeightPercent}%`;
+        }, 120);
+        bar.appendChild(seg);
+        prev = limit;
+      });
+
+      // If count > 35, add violet for the overflow
+      if (count > 35) {
+        const overSeg = bar.querySelector('.chart-segment:last-child');
+        if (overSeg) {
+          const extra = ((count - 35) / Math.max(maxCount, MAX_SCALE)) * 100;
+          const current = parseFloat(overSeg.style.height) || 0;
+          setTimeout(() => {
+            overSeg.style.height = `${current + extra}%`;
+          }, 140);
+        }
+      }
+
+      // Animate overall bar height
+      setTimeout(() => {
+        bar.style.height = `${Math.max(barHeightPercent, 5)}%`;
+      }, 100);
+
+      const label = document.createElement('div');
+      label.className = 'chart-label';
+      label.textContent = shortDay;
+
+      barContainer.appendChild(bar);
+      barContainer.appendChild(label);
+      activityChart.appendChild(barContainer);
+    });
+  }
+
+  function renderInsights(insights) {
+    insightsList.innerHTML = '';
+    if (insights.length === 0) {
+      insightsList.innerHTML = '<p style="color: var(--gray-text); text-align: center; padding: 2rem;">No AI insights yet. Generate one to reflect on your journey!</p>';
+      return;
+    }
+    
+    insights.forEach(insight => {
+      const div = document.createElement('div');
+      div.className = 'insight-item';
+      
+      const dateDiv = document.createElement('div');
+      dateDiv.className = 'insight-date';
+      dateDiv.textContent = new Date(insight.createdAt).toLocaleString(undefined, {
+        weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+      
+      const textDiv = document.createElement('div');
+      textDiv.className = 'insight-text';
+      textDiv.textContent = insight.content;
+      
+      div.appendChild(dateDiv);
+      div.appendChild(textDiv);
+      insightsList.appendChild(div);
+    });
+  }
+
+  if (generateInsightBtn) {
+    generateInsightBtn.addEventListener('click', async () => {
+      const originalHtml = generateInsightBtn.innerHTML;
+      generateInsightBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+      generateInsightBtn.disabled = true;
+      
+      try {
+        const res = await fetch('/api/insights', { method: 'POST' });
+        const data = await res.json();
+        
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to generate insight');
+        }
+        
+        // Reload analytics
+        loadAnalytics();
+      } catch (e) {
+        console.error(e);
+        alert(e.message);
+      } finally {
+        generateInsightBtn.innerHTML = originalHtml;
+        generateInsightBtn.disabled = false;
+      }
+    });
   }
 
 });

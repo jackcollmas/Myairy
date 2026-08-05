@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { MongoClient, Db } from 'mongodb';
-import { Persona, JournalEntry } from '../server';
+import { Persona, JournalEntry, Insight } from '../server.js';
 
 const MONGODB_URI = process.env.MONGODB_URI || '';
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -16,6 +16,7 @@ export interface StorageStatus {
 interface LocalData {
   personas: Persona[];
   journals: JournalEntry[];
+  insights: Insight[];
 }
 
 const DEFAULT_PERSONAS: Persona[] = [
@@ -116,6 +117,7 @@ class DatabaseService {
       const initialData: LocalData = {
         personas: DEFAULT_PERSONAS,
         journals: DEFAULT_JOURNALS,
+        insights: [],
       };
       fs.writeFileSync(JSON_FILE_PATH, JSON.stringify(initialData, null, 2), 'utf-8');
     }
@@ -129,9 +131,10 @@ class DatabaseService {
       return {
         personas: parsed.personas || DEFAULT_PERSONAS,
         journals: parsed.journals || DEFAULT_JOURNALS,
+        insights: parsed.insights || [],
       };
     } catch {
-      return { personas: DEFAULT_PERSONAS, journals: DEFAULT_JOURNALS };
+      return { personas: DEFAULT_PERSONAS, journals: DEFAULT_JOURNALS, insights: [] };
     }
   }
 
@@ -300,6 +303,35 @@ class DatabaseService {
       data.journals = data.journals.filter((j) => j.id !== id);
       this.writeJsonData(data);
       return data.journals.length < initialLen;
+    }
+  }
+
+  // --- INSIGHTS CRUD ---
+  
+  public async getInsights(): Promise<Insight[]> {
+    if (this.isMongoConnected && this.db) {
+      const insights = await this.db.collection('insights').find({}).sort({ createdAt: -1 }).toArray();
+      return insights.map((i: any) => ({
+        id: i.id || i._id.toString(),
+        content: i.content,
+        createdAt: i.createdAt,
+      }));
+    } else {
+      const data = this.readJsonData();
+      return (data.insights || []).sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1));
+    }
+  }
+
+  public async saveInsight(insight: Insight): Promise<Insight> {
+    if (this.isMongoConnected && this.db) {
+      await this.db.collection('insights').insertOne(insight as any);
+      return insight;
+    } else {
+      const data = this.readJsonData();
+      if (!data.insights) data.insights = [];
+      data.insights.unshift(insight);
+      this.writeJsonData(data);
+      return insight;
     }
   }
 }

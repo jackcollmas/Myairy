@@ -37,7 +37,7 @@
     {
       "id": "journal_welcome",
       "title": "First Collective Journal",
-      "date": "2026-07-24",
+      "date": "2026-08-05",
       "isSpecial": true,
       "specialNote": "App launch day - started journaling with my inner personas!",
       "messages": [
@@ -47,7 +47,7 @@
           "personaName": "Work Me",
           "personaColor": "#000000",
           "content": "Finished setting up our new minimalist journal app today! Ready to track our daily goals.",
-          "timestamp": "2026-07-24T19:49:04.288Z"
+          "timestamp": "2026-08-05T14:19:07.394Z"
         },
         {
           "id": "msg_2",
@@ -55,80 +55,114 @@
           "personaName": "Personal Me",
           "personaColor": "#333333",
           "content": "I love how clean this looks. It feels like we are all talking in a private group chat.",
-          "timestamp": "2026-07-24T20:49:04.288Z"
+          "timestamp": "2026-08-05T15:19:07.394Z"
         },
         {
-          "id": "msg_1784934985879",
-          "personaId": "persona_1784934977935_ha3v5",
-          "personaName": "Creative Me",
-          "personaColor": "#000000",
-          "content": "Hi",
-          "timestamp": "2026-07-24T23:16:25.879Z"
-        },
-        {
-          "id": "msg_1784935735375",
-          "personaId": "persona_work",
-          "personaName": "Work Me",
-          "personaColor": "#000000",
-          "content": "hi",
-          "timestamp": "2026-07-24T23:28:55.375Z"
-        },
-        {
-          "id": "msg_1784935739398",
-          "personaId": "persona_1784934977935_ha3v5",
-          "personaName": "Creative Me",
-          "personaColor": "#000000",
-          "content": "hi",
-          "timestamp": "2026-07-24T23:28:59.398Z"
-        },
-        {
-          "id": "msg_1784966080757",
+          "id": "msg_1785951960153",
           "personaId": "persona_work",
           "personaName": "Work Me",
           "personaColor": "#000000",
           "personaIcon": "💼",
-          "content": "@whats up",
-          "timestamp": "2026-07-25T07:54:40.757Z"
+          "content": "hello",
+          "timestamp": "2026-08-05T17:46:00.153Z"
         },
         {
-          "id": "msg_1784966082114",
-          "personaId": "ai_assistant",
-          "personaName": "AI Assistant",
-          "personaColor": "#4a90e2",
-          "personaIcon": "🤖",
-          "content": "Not much! Just getting everyone on the same page. Personal Me, how's the mindset today? Feeling focused or needing a boost?",
-          "timestamp": "2026-07-25T07:54:42.113Z"
-        },
-        {
-          "id": "msg_1784966112521",
+          "id": "msg_1785952334645_0.9593039312323908",
           "personaId": "persona_work",
           "personaName": "Work Me",
           "personaColor": "#000000",
           "personaIcon": "💼",
-          "content": "@everyone is just saying hi",
-          "timestamp": "2026-07-25T07:55:12.521Z"
+          "content": "@work",
+          "timestamp": "2026-08-05T17:52:14.645Z"
         },
         {
-          "id": "msg_1784966113746",
-          "personaId": "ai_assistant",
-          "personaName": "AI Assistant",
-          "personaColor": "#4a90e2",
-          "personaIcon": "🤖",
-          "content": "It seems like everyone's just dropping in to say hello. I'll wait for someone to start a conversation or share their thoughts. Whenever you're ready, I'm here to listen and help.",
-          "timestamp": "2026-07-25T07:55:13.745Z"
-        },
-        {
-          "id": "msg_1784966494786",
+          "id": "msg_1785952334645_0.5516261739737114",
           "personaId": "persona_work",
           "personaName": "Work Me",
           "personaColor": "#000000",
           "personaIcon": "💼",
-          "content": "Hi",
-          "timestamp": "2026-07-25T08:01:34.786Z"
+          "content": "@AI Assistant",
+          "timestamp": "2026-08-05T17:52:14.645Z"
+        },
+        {
+          "id": "msg_1785952334645_0.968430991576228",
+          "personaId": "persona_work",
+          "personaName": "Work Me",
+          "personaColor": "#000000",
+          "personaIcon": "💼",
+          "content": "@Work Me whats up",
+          "timestamp": "2026-08-05T17:52:14.645Z"
+        },
+        {
+          "id": "msg_1785952362888_0.017832117253169577",
+          "personaId": "persona_work",
+          "personaName": "Work Me",
+          "personaColor": "#000000",
+          "personaIcon": "💼",
+          "content": "@Personal Me hello",
+          "timestamp": "2026-08-05T17:52:42.888Z"
+        },
+        {
+          "id": "msg_1785954507720_0.16992989029848715",
+          "personaId": "persona_work",
+          "personaName": "Work Me",
+          "personaColor": "#ff2424",
+          "personaIcon": "💼",
+          "content": "@",
+          "timestamp": "2026-08-05T18:28:27.720Z"
+        },
+        {
+          "id": "msg_1785954705966_0.5816814759439546",
+          "personaId": "persona_work",
+          "personaName": "Work Me",
+          "personaColor": "#ff2424",
+          "personaIcon": "💼",
+          "content": "@",
+          "timestamp": "2026-08-05T18:31:45.966Z"
+        },
+        {
+          "id": "msg_1785957892123",
+          "personaId": "persona_personal",
+          "personaName": "Personal Me",
+          "personaColor": "#333333",
+          "personaIcon": "🌿",
+          "content": "aara",
+          "timestamp": "2026-08-05T19:24:52.123Z"
+        },
+        {
+          "id": "msg_1785957898396_0.43350500495387745",
+          "personaId": "persona_work",
+          "personaName": "Work Me",
+          "personaColor": "#000000",
+          "personaIcon": "💼",
+          "content": "@",
+          "timestamp": "2026-08-05T19:24:58.396Z"
+        },
+        {
+          "id": "msg_1785957902224",
+          "personaId": "persona_personal",
+          "personaName": "Personal Me",
+          "personaColor": "#333333",
+          "personaIcon": "🌿",
+          "content": "fsbs",
+          "timestamp": "2026-08-05T19:25:02.224Z"
+        },
+        {
+          "id": "msg_1785957947108",
+          "personaId": "persona_personal",
+          "personaName": "Personal Me",
+          "personaColor": "#333333",
+          "personaIcon": "🌿",
+          "content": "ddd",
+          "timestamp": "2026-08-05T19:25:47.108Z",
+          "imageUrls": [
+            "https://res.cloudinary.com/tyzllg67/image/upload/v1785957965/myairy-journal/t1e2pomfgtg6t7vnl8kd.png",
+            "https://res.cloudinary.com/tyzllg67/image/upload/v1785957967/myairy-journal/ikz9g8p4zpgpprwi7ysk.png"
+          ]
         }
       ],
       "createdAt": "2026-07-24T19:49:04.288Z",
-      "updatedAt": "2026-07-25T08:02:28.338Z"
+      "updatedAt": "2026-08-05T19:25:47.435Z"
     }
   ]
 }

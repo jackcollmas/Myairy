@@ -4,7 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Myairy</title>
+  
+  <!-- PWA Meta Tags -->
+  <meta name="description" content="A personal journal app with multiple personas">
+  <meta name="theme-color" content="#000000">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Myairy">
+  
+  <!-- Icons -->
   <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="logo.png">
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+  
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
@@ -19,8 +34,28 @@
     <div class="lock-container">
       <h1>Myairy</h1>
       <p>Enter your PIN to continue</p>
-      <input type="password" id="pin-input" maxlength="4" placeholder="••••" inputmode="numeric" pattern="[0-9]*">
+      <div class="pin-input-wrapper">
+        <input type="password" id="pin-input" maxlength="4" placeholder="••••" inputmode="numeric" pattern="[0-9]*">
+        <div id="pin-loading" class="pin-loading hidden">
+          <div class="spinner"></div>
+        </div>
+      </div>
       <p id="lock-error" class="error"></p>
+      
+      <!-- Pre-login message input -->
+      <div class="pre-login-input-container">
+        <p class="pre-login-hint">Quick thought while waiting?</p>
+        <div style="position: relative;">
+          <div id="pre-login-mentions-dropdown" class="mentions-dropdown hidden"></div>
+          <input type="text" id="pre-login-input" placeholder="Type @ to tag...">
+        </div>
+        <button id="pre-login-send-btn" class="pre-login-send-btn" title="Queue message">
+          <i class="fas fa-paper-plane"></i>
+        </button>
+      </div>
+      <div id="pre-login-queue" class="pre-login-queue">
+        <!-- Queued messages will appear here -->
+      </div>
     </div>
   </div>
 
@@ -46,6 +81,7 @@
         <button id="nav-chat" class="nav-btn"><i class="fas fa-comments"></i> <span>Chat</span></button>
         <button id="nav-personas" class="nav-btn"><i class="fas fa-users"></i> <span>Personas</span></button>
         <button id="nav-search" class="nav-btn"><i class="fas fa-search"></i> <span>Search</span></button>
+        <button id="nav-analytics" class="nav-btn"><i class="fas fa-chart-pie"></i> <span>Analytics</span></button>
       </nav>
       <div class="sidebar-footer">
         <button id="lock-app-btn" class="nav-btn"><i class="fas fa-lock"></i> Lock</button>
@@ -161,14 +197,8 @@
           <!-- Attachment Preview Area (for images and replies) -->
           <div id="attachment-preview" class="attachment-preview hidden">
             <div class="attachment-preview-content">
-              <!-- Image preview -->
-              <div id="image-attachment" class="image-attachment hidden">
-                <img id="attachment-image" src="" alt="Preview" class="attachment-image">
-                <div class="attachment-overlay">
-                  <span class="attachment-status"><i class="fas fa-upload"></i> Uploading...</span>
-                </div>
-                <button id="remove-image-btn" class="remove-attachment-btn" title="Remove image"><i class="fas fa-times"></i></button>
-              </div>
+              <!-- Multiple images preview container -->
+              <div id="images-container" class="images-container hidden"></div>
               
               <!-- Reply preview -->
               <div id="reply-attachment" class="reply-attachment hidden">
@@ -185,9 +215,40 @@
           <div class="composer-input-row" style="position: relative;">
             <div id="mentions-dropdown" class="mentions-dropdown hidden"></div>
             <input type="text" id="message-input" placeholder="What's on your mind? (Type @ to tag)">
-            <input type="file" id="image-input" accept="image/*" style="display: none;">
-            <button id="image-upload-btn" class="icon-btn" title="Upload Image"><i class="fas fa-camera"></i></button>
+            <input type="file" id="image-input" accept="image/*" multiple style="display: none;">
+            
+            <!-- Image Options Menu -->
+            <div id="image-options-menu" class="image-options-menu hidden">
+              <button class="image-option-btn" data-action="camera">
+                <i class="fas fa-camera"></i>
+                <span>Take Photo</span>
+              </button>
+              <button class="image-option-btn" data-action="upload">
+                <i class="fas fa-image"></i>
+                <span>Upload Images</span>
+              </button>
+            </div>
+            
+            <button id="image-btn" class="icon-btn" title="Add Image"><i class="fas fa-camera"></i></button>
             <button id="send-message-btn" class="primary-btn">Send</button>
+          </div>
+        </div>
+        
+        <!-- Camera Modal -->
+        <div id="camera-modal" class="camera-modal hidden">
+          <div class="camera-modal-content">
+            <div class="camera-header">
+              <h3>Take a Photo</h3>
+              <button id="close-camera-btn" class="icon-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="camera-body">
+              <video id="camera-video" autoplay playsinline></video>
+              <canvas id="camera-canvas" style="display: none;"></canvas>
+            </div>
+            <div class="camera-footer">
+              <button id="switch-camera-btn" class="icon-btn" title="Switch Camera"><i class="fas fa-sync-alt"></i></button>
+              <button id="capture-photo-btn" class="primary-btn"><i class="fas fa-camera"></i> Capture</button>
+            </div>
           </div>
         </div>
         
@@ -219,6 +280,93 @@
           <button class="reaction-btn" data-emoji="😮">😮</button>
           <button class="reaction-btn" data-emoji="😢">😢</button>
           <button class="reaction-btn" data-emoji="🙏">🙏</button>
+          <button class="reaction-btn-add" id="add-emoji-btn" title="Add emoji from clipboard">
+            <i class="fas fa-plus"></i>
+          </button>
+        </div>
+      </section>
+
+      <!-- Analytics View -->
+      <section id="view-analytics" class="sub-view hidden">
+        <header>
+          <h2>Analytics & Insights</h2>
+        </header>
+        
+        <div class="analytics-grid">
+          <div class="analytics-card stat-card">
+            <i class="fas fa-fire streak-icon"></i>
+            <div class="stat-info">
+              <span class="stat-label">Current Streak</span>
+              <span id="stat-streak" class="stat-value">0 days</span>
+            </div>
+          </div>
+          <div class="analytics-card stat-card">
+            <i class="fas fa-crown top-icon"></i>
+            <div class="stat-info">
+              <span class="stat-label">Top Persona</span>
+              <span id="stat-top-persona" class="stat-value">-</span>
+            </div>
+          </div>
+          <div class="analytics-card stat-card">
+            <i class="fas fa-calendar-day day-icon"></i>
+            <div class="stat-info">
+              <span class="stat-label">Most Active Day</span>
+              <span id="stat-active-day" class="stat-value">-</span>
+            </div>
+          </div>
+          <div class="analytics-card stat-card">
+            <i class="fas fa-comment-dots msg-icon"></i>
+            <div class="stat-info">
+              <span class="stat-label">Total Messages</span>
+              <span id="stat-total-msgs" class="stat-value">0</span>
+            </div>
+          </div>
+          <div class="analytics-card stat-card">
+            <i class="fas fa-image img-icon"></i>
+            <div class="stat-info">
+              <span class="stat-label">Total Images</span>
+              <span id="stat-total-imgs" class="stat-value">0</span>
+            </div>
+          </div>
+          <div class="analytics-card stat-card">
+            <i class="fas fa-star star-icon"></i>
+            <div class="stat-info">
+              <span class="stat-label">Starred Journals</span>
+              <span id="stat-total-stars" class="stat-value">0</span>
+            </div>
+          </div>
+          <div class="analytics-card stat-card">
+            <i class="fas fa-smile react-icon"></i>
+            <div class="stat-info">
+              <span class="stat-label">Total Reactions</span>
+              <span id="stat-total-reacts" class="stat-value">0</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="analytics-charts-container">
+          <div class="analytics-card chart-card">
+            <h3>Activity Over Time</h3>
+            <div class="chart-wrapper">
+              <div id="activity-chart" class="css-bar-chart">
+                <!-- Bars injected via JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="analytics-insights-container">
+          <div class="analytics-card insights-card">
+            <div class="insights-header">
+              <h3><i class="fas fa-brain"></i> AI Insights</h3>
+              <button id="generate-insight-btn" class="primary-btn pulse-btn">
+                <i class="fas fa-wand-magic-sparkles"></i> Generate New
+              </button>
+            </div>
+            <div id="insights-list" class="insights-list">
+              <!-- Insights injected here -->
+            </div>
+          </div>
         </div>
       </section>
     </main>
@@ -243,5 +391,53 @@
   </div>
 
   <script src="app.js"></script>
+  
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then((registration) => {
+            console.log('Service Worker registered successfully:', registration.scope);
+            
+            // Check for updates
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // New service worker available, reload to update
+                  console.log('New version available! Reloading...');
+                  newWorker.postMessage({ type: 'SKIP_WAITING' });
+                  window.location.reload();
+                }
+              });
+            });
+          })
+          .catch((error) => {
+            console.log('Service Worker registration failed:', error);
+          });
+      });
+
+      // Reload page when new service worker takes control
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+      });
+    }
+
+    // Install prompt for PWA
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      // Stash the event so it can be triggered later
+      deferredPrompt = e;
+      console.log('PWA install prompt available');
+    });
+
+    window.addEventListener('appinstalled', () => {
+      console.log('PWA was installed successfully');
+      deferredPrompt = null;
+    });
+  </script>
 </body>
 </html>
