@@ -1,6 +1,8 @@
 {
   "framework": null,
   "outputDirectory": "public",
+  "installCommand": "echo 'No install needed'",
+  "buildCommand": "echo 'No build needed'",
   "rewrites": [
     {
       "source": "/api/:match*",
