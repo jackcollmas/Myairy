@@ -2021,7 +2021,6 @@ select:focus, input[type="text"]:focus {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0; height: 4px;
-  background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -2029,6 +2028,17 @@ select:focus, input[type="text"]:focus {
 .analytics-card:hover::before {
   opacity: 1;
 }
+
+/* Per-card top strip colors matching each icon */
+.stat-card:has(.streak-icon)::before  { background: linear-gradient(90deg, #ff9a9e, #fecfef); }
+.stat-card:has(.top-icon)::before     { background: linear-gradient(90deg, #f6d365, #fda085); }
+.stat-card:has(.day-icon)::before     { background: linear-gradient(90deg, #84fab0, #8fd3f4); }
+.stat-card:has(.msg-icon)::before     { background: linear-gradient(90deg, #a18cd1, #fbc2eb); }
+.stat-card:has(.img-icon)::before     { background: linear-gradient(90deg, #4facfe, #00f2fe); }
+.stat-card:has(.star-icon)::before    { background: linear-gradient(90deg, #fccb90, #d57eeb); }
+.stat-card:has(.react-icon)::before   { background: linear-gradient(90deg, #43e97b, #38f9d7); }
+.chart-card::before                   { background: linear-gradient(90deg, #4facfe, #00f2fe); }
+.insights-card::before                { background: linear-gradient(90deg, #4facfe, #00f2fe); }
 
 /* Stat Cards */
 .stat-card {
@@ -2094,7 +2104,7 @@ select:focus, input[type="text"]:focus {
 }
 
 .chart-wrapper {
-  height: 250px;
+  height: 550px;
   width: 100%;
   display: flex;
   align-items: flex-end;
@@ -2156,8 +2166,8 @@ select:focus, input[type="text"]:focus {
 
 .chart-segment {
   width: 100%;
-  transition: height 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   flex-shrink: 0;
+  flex-basis: 0;
 }
 
 .chart-label {

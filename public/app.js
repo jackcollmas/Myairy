@@ -3005,8 +3005,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     last7Days.forEach(date => {
       const count = dateCounts[date] || 0;
-      const totalHeight = Math.max(count, 1);
-      const barHeightPercent = Math.min((count / Math.max(maxCount, MAX_SCALE)) * 100, 100);
+      // Scale to actual max so the tallest bar always reaches near the top
+      const barHeightPercent = count === 0 ? 0 : Math.max((count / maxCount) * 100, 4);
       const shortDay = new Date(date).toLocaleDateString('en-US', { weekday: 'short' });
 
       const barContainer = document.createElement('div');
@@ -3017,42 +3017,35 @@ document.addEventListener('DOMContentLoaded', () => {
       bar.style.height = '0%';
       bar.setAttribute('data-val', count);
 
-      // Build stacked segments
+      // Build stacked segments using flex-grow so they fill the bar proportionally
       let prev = 0;
+      const effectiveCount = Math.max(count, 1);
       roygbiv.forEach(({ limit, color }) => {
-        if (count <= prev) return; // this band is not reached
-        const bandStart = prev;
+        if (count <= prev) return; // band not reached
         const bandEnd = Math.min(count, limit);
-        const bandCount = bandEnd - bandStart;
-        const segHeightPercent = (bandCount / Math.max(maxCount, MAX_SCALE)) * 100;
+        const bandCount = bandEnd - prev;
 
         const seg = document.createElement('div');
         seg.className = 'chart-segment';
         seg.style.background = color;
-        seg.style.height = '0px';
-        // animate after paint
-        setTimeout(() => {
-          seg.style.height = `${segHeightPercent}%`;
-        }, 120);
+        seg.style.flexGrow = bandCount; // proportional slice of the bar
+        seg.style.flexShrink = 0;
+        seg.style.flexBasis = '0';
         bar.appendChild(seg);
         prev = limit;
       });
 
-      // If count > 35, add violet for the overflow
+      // Handle count > 35: extend the last (violet) segment
       if (count > 35) {
-        const overSeg = bar.querySelector('.chart-segment:last-child');
-        if (overSeg) {
-          const extra = ((count - 35) / Math.max(maxCount, MAX_SCALE)) * 100;
-          const current = parseFloat(overSeg.style.height) || 0;
-          setTimeout(() => {
-            overSeg.style.height = `${current + extra}%`;
-          }, 140);
+        const lastSeg = bar.querySelector('.chart-segment:last-child');
+        if (lastSeg) {
+          lastSeg.style.flexGrow = parseFloat(lastSeg.style.flexGrow) + (count - 35);
         }
       }
 
       // Animate overall bar height
       setTimeout(() => {
-        bar.style.height = `${Math.max(barHeightPercent, 5)}%`;
+        bar.style.height = `${Math.max(barHeightPercent, 4)}%`;
       }, 100);
 
       const label = document.createElement('div');
