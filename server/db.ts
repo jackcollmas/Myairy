@@ -140,7 +140,17 @@ class DatabaseService {
 
   private writeJsonData(data: LocalData) {
     this.initJsonStorage();
-    fs.writeFileSync(JSON_FILE_PATH, JSON.stringify(data, null, 2), 'utf-8');
+    try {
+      const jsonString = JSON.stringify(data, null, 2);
+      fs.writeFileSync(JSON_FILE_PATH, jsonString, 'utf-8');
+      console.log('✓ Database written successfully to', JSON_FILE_PATH);
+      console.log('  - Personas:', data.personas.length);
+      console.log('  - Journals:', data.journals.length);
+      console.log('  - Total messages:', data.journals.reduce((sum, j) => sum + (j.messages?.length || 0), 0));
+    } catch (err: any) {
+      console.error('✗ Failed to write database:', err.message);
+      throw err;
+    }
   }
 
   private async seedMongoIfEmpty() {
@@ -280,15 +290,30 @@ class DatabaseService {
 
   public async updateJournal(id: string, updates: Partial<JournalEntry>): Promise<JournalEntry | null> {
     const updatedAt = new Date().toISOString();
+    console.log('📝 Updating journal:', id);
+    console.log('  - Updates keys:', Object.keys(updates));
+    if (updates.messages) {
+      console.log('  - New message count:', updates.messages.length);
+    }
+    
     if (this.isMongoConnected && this.db) {
       await this.db.collection('journals').updateOne({ id }, { $set: { ...updates, updatedAt } });
       return this.getJournal(id);
     } else {
       const data = this.readJsonData();
       const idx = data.journals.findIndex((j) => j.id === id);
-      if (idx === -1) return null;
+      if (idx === -1) {
+        console.error('✗ Journal not found:', id);
+        return null;
+      }
+      console.log('  - Found journal at index:', idx);
+      console.log('  - Current messages:', data.journals[idx].messages?.length || 0);
+      
       data.journals[idx] = { ...data.journals[idx], ...updates, updatedAt };
+      console.log('  - Updated messages:', data.journals[idx].messages?.length || 0);
+      
       this.writeJsonData(data);
+      console.log('✓ Journal updated successfully');
       return data.journals[idx];
     }
   }
