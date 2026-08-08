@@ -342,6 +342,41 @@
               <span id="stat-total-reacts" class="stat-value">0</span>
             </div>
           </div>
+          <div class="analytics-card stat-card">
+            <i class="fas fa-book-open journal-icon"></i>
+            <div class="stat-info">
+              <span class="stat-label">Longest Journal</span>
+              <span id="stat-longest-journal" class="stat-value">0 words</span>
+            </div>
+          </div>
+          <div class="analytics-card stat-card">
+            <i class="fas fa-clock time-icon"></i>
+            <div class="stat-info">
+              <span class="stat-label">Favorite Time</span>
+              <span id="stat-favorite-time" class="stat-value">-</span>
+            </div>
+          </div>
+          <div class="analytics-card stat-card">
+            <i class="fas fa-face-laugh emoji-icon"></i>
+            <div class="stat-info">
+              <span class="stat-label">Most Used Emoji</span>
+              <span id="stat-most-emoji" class="stat-value">-</span>
+            </div>
+          </div>
+          <div class="analytics-card stat-card">
+            <i class="fas fa-chart-line avg-icon"></i>
+            <div class="stat-info">
+              <span class="stat-label">Avg. Messages/Day</span>
+              <span id="stat-avg-msgs" class="stat-value">0</span>
+            </div>
+          </div>
+          <div class="analytics-card stat-card">
+            <i class="fas fa-pen-fancy writing-icon"></i>
+            <div class="stat-info">
+              <span class="stat-label">Writing Days</span>
+              <span id="stat-writing-days" class="stat-value">0 days</span>
+            </div>
+          </div>
         </div>
 
         <div class="analytics-charts-container">
@@ -398,29 +433,43 @@
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/service-worker.js')
           .then((registration) => {
-            console.log('Service Worker registered successfully:', registration.scope);
+            console.log('[App] Service Worker registered:', registration.scope);
             
-            // Check for updates
+            // Force update check on page load
+            registration.update();
+            
+            // Check for updates every 60 seconds when app is active
+            setInterval(() => {
+              registration.update();
+            }, 60000);
+            
+            // Handle updates
             registration.addEventListener('updatefound', () => {
               const newWorker = registration.installing;
+              console.log('[App] New service worker detected');
+              
               newWorker.addEventListener('statechange', () => {
                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  // New service worker available, reload to update
-                  console.log('New version available! Reloading...');
+                  console.log('[App] New version available! Page will reload...');
+                  // Tell the new SW to take over immediately
                   newWorker.postMessage({ type: 'SKIP_WAITING' });
-                  window.location.reload();
                 }
               });
             });
           })
           .catch((error) => {
-            console.log('Service Worker registration failed:', error);
+            console.error('[App] Service Worker registration failed:', error);
           });
       });
 
-      // Reload page when new service worker takes control
+      // Reload when new service worker takes control
+      let refreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        window.location.reload();
+        if (!refreshing) {
+          refreshing = true;
+          console.log('[App] New service worker activated, reloading page...');
+          window.location.reload();
+        }
       });
     }
 

@@ -144,6 +144,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const statTotalImgs = document.getElementById('stat-total-imgs');
   const statTotalStars = document.getElementById('stat-total-stars');
   const statTotalReacts = document.getElementById('stat-total-reacts');
+  const statLongestJournal = document.getElementById('stat-longest-journal');
+  const statFavoriteTime = document.getElementById('stat-favorite-time');
+  const statMostEmoji = document.getElementById('stat-most-emoji');
+  const statAvgMsgs = document.getElementById('stat-avg-msgs');
+  const statWritingDays = document.getElementById('stat-writing-days');
   const activityChart = document.getElementById('activity-chart');
   const generateInsightBtn = document.getElementById('generate-insight-btn');
   const insightsList = document.getElementById('insights-list');
@@ -351,20 +356,12 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Don't send if only @ is present
-    if (e.key === 'Enter' && preLoginInput.value.trim() === '@') {
-      e.preventDefault();
-      return;
-    }
-
+    // If mentions dropdown is not active, don't handle special keys
     if (!preLoginMentionActive || preLoginMentionsDropdown.classList.contains('hidden')) {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        preLoginSendBtn.click();
-      }
       return;
     }
 
+    // Handle navigation and selection within mentions dropdown
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       preLoginSelectedMentionIndex = (preLoginSelectedMentionIndex + 1) % preLoginMentionOptions.length;
@@ -465,12 +462,9 @@ document.addEventListener('DOMContentLoaded', () => {
   async function sendQueuedMessages() {
     if (!activeJournalId) return;
 
+    // Only send messages from the queue (not from the input field)
+    // The input field content is transferred to chat input via transferPreLoginInput()
     const messagesToSend = [...preLoginMessages];
-    const inputText = preLoginInput.value.trim();
-    
-    if (inputText) {
-      messagesToSend.push(inputText);
-    }
 
     if (messagesToSend.length === 0) return;
 
@@ -552,8 +546,6 @@ document.addEventListener('DOMContentLoaded', () => {
       // Clear queued messages
       preLoginMessages = [];
       clearPreLoginMessages();
-      preLoginInput.value = '';
-      clearPreLoginInputState();
       renderPreLoginQueue();
 
       // Reload journal to show new messages
@@ -566,10 +558,23 @@ document.addEventListener('DOMContentLoaded', () => {
   // Transfer pre-login input to chat input if user was typing when login completed
   function transferPreLoginInput() {
     const text = preLoginInput.value.trim();
-    if (text && messageInput) {
-      messageInput.value = text;
+    // Don't transfer if it's empty or just the @ symbol
+    if (!text || text === '@' || !messageInput) {
+      // Clear the pre-login input and reset to @
+      resetPreLoginInput();
       clearPreLoginInputState();
+      return;
     }
+    
+    // Transfer the text to the chat input
+    messageInput.value = text;
+    
+    // Clear pre-login input and reset
+    resetPreLoginInput();
+    clearPreLoginInputState();
+    
+    // Focus the chat input so user can continue typing
+    messageInput.focus();
   }
 
   // --- Initialization ---
@@ -660,13 +665,15 @@ document.addEventListener('DOMContentLoaded', () => {
           await loadDashboard();
           await getOrCreateTodayJournal();
           
-          // Send queued messages after a short delay
+          // Transfer any text in pre-login input to chat input (after journal is open)
+          setTimeout(() => {
+            transferPreLoginInput();
+          }, 600);
+          
+          // Send queued messages after transfer is complete
           setTimeout(async () => {
             await sendQueuedMessages();
-          }, 500);
-          
-          // Transfer any text in pre-login input to chat input
-          transferPreLoginInput();
+          }, 700);
         } else {
           lockError.textContent = data.message || 'Invalid PIN';
           pinInput.value = '';
@@ -2235,7 +2242,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Show dropdown when focusing the input if there's an @
   messageInput.addEventListener('focus', () => {
     inputHasFocus = true;
-    // Trigger input processing after setting focus flag
+    // Move cursor to end of input to ensure proper mention detection
+    messageInput.selectionStart = messageInput.value.length;
+    messageInput.selectionEnd = messageInput.value.length;
+    // Trigger input processing after setting focus flag and cursor position
     setTimeout(() => {
       messageInput.dispatchEvent(new Event('input'));
     }, 0);
@@ -2944,6 +2954,11 @@ document.addEventListener('DOMContentLoaded', () => {
       statTotalImgs.textContent = '0';
       statTotalStars.textContent = '0';
       statTotalReacts.textContent = '0';
+      statLongestJournal.textContent = '0 words';
+      statFavoriteTime.textContent = '-';
+      statMostEmoji.textContent = '-';
+      statAvgMsgs.textContent = '0';
+      statWritingDays.textContent = '0 days';
       activityChart.innerHTML = '';
       return;
     }
@@ -3041,6 +3056,119 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     statActiveDay.textContent = topDay || '-';
+
+    // === NEW STATS ===
+    
+    // 1. Longest Journal (by word count)
+    let longestWordCount = 0;
+    journals.forEach(j => {
+      if (j.messages && j.messages.length > 0) {
+        let journalWordCount = 0;
+        j.messages.forEach(m => {
+          if (m.content) {
+            // Count words in message content
+            const words = m.content.trim().split(/\s+/).filter(w => w.length > 0);
+            journalWordCount += words.length;
+          }
+        });
+        if (journalWordCount > longestWordCount) {
+          longestWordCount = journalWordCount;
+        }
+      }
+    });
+    statLongestJournal.textContent = longestWordCount > 0 
+      ? `${longestWordCount.toLocaleString()} words` 
+      : '0 words';
+
+    // 2. Favorite Time (hour when most messages are sent)
+    const hourCounts = {};
+    journals.forEach(j => {
+      if (j.messages && j.messages.length > 0) {
+        j.messages.forEach(m => {
+          if (m.timestamp) {
+            try {
+              const hour = new Date(m.timestamp).getHours();
+              hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+            } catch (e) {
+              // Skip invalid timestamps
+            }
+          }
+        });
+      }
+    });
+    
+    let favoriteHour = null;
+    let maxHourCount = 0;
+    for (const [hour, count] of Object.entries(hourCounts)) {
+      if (count > maxHourCount) {
+        favoriteHour = parseInt(hour);
+        maxHourCount = count;
+      }
+    }
+    
+    if (favoriteHour !== null) {
+      // Format hour as 12-hour time (e.g., "9 PM")
+      const period = favoriteHour >= 12 ? 'PM' : 'AM';
+      const displayHour = favoriteHour === 0 ? 12 : (favoriteHour > 12 ? favoriteHour - 12 : favoriteHour);
+      statFavoriteTime.textContent = `${displayHour} ${period}`;
+    } else {
+      statFavoriteTime.textContent = '-';
+    }
+
+    // 3. Most Used Emoji
+    const emojiRegex = /[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu;
+    const emojiCounts = {};
+    
+    journals.forEach(j => {
+      if (j.messages && j.messages.length > 0) {
+        j.messages.forEach(m => {
+          // Check message content for emojis
+          if (m.content) {
+            const emojis = m.content.match(emojiRegex);
+            if (emojis) {
+              emojis.forEach(emoji => {
+                emojiCounts[emoji] = (emojiCounts[emoji] || 0) + 1;
+              });
+            }
+          }
+          
+          // Check reactions for emojis
+          if (m.reactions && m.reactions.length > 0) {
+            m.reactions.forEach(reaction => {
+              if (reaction.emoji) {
+                emojiCounts[reaction.emoji] = (emojiCounts[reaction.emoji] || 0) + 1;
+              }
+            });
+          }
+        });
+      }
+    });
+    
+    let mostUsedEmoji = null;
+    let maxEmojiCount = 0;
+    for (const [emoji, count] of Object.entries(emojiCounts)) {
+      if (count > maxEmojiCount) {
+        mostUsedEmoji = emoji;
+        maxEmojiCount = count;
+      }
+    }
+    
+    statMostEmoji.textContent = mostUsedEmoji || '-';
+
+    // 4. Average Messages Per Day
+    // Count days with at least one journal
+    const daysWithJournals = journals.length;
+    if (daysWithJournals > 0 && totalMsgs > 0) {
+      const avgMsgsPerDay = (totalMsgs / daysWithJournals).toFixed(1);
+      statAvgMsgs.textContent = avgMsgsPerDay;
+    } else {
+      statAvgMsgs.textContent = '0';
+    }
+
+    // 5. Writing Days (total number of days with journals)
+    statWritingDays.textContent = `${journals.length} ${journals.length === 1 ? 'day' : 'days'}`;
+
+    // === END NEW STATS ===
 
     // Activity Chart (last 7 days)
     activityChart.innerHTML = '';
