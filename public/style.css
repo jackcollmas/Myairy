@@ -2545,6 +2545,7 @@ select:focus, input[type="text"]:focus {
   justify-content: center;
   align-items: center;
   transition: transform 0.2s ease;
+  position: relative;
 }
 
 .counter-card:hover {
@@ -2569,8 +2570,73 @@ select:focus, input[type="text"]:focus {
 .counter-card-count {
   font-size: 1.5rem;
   font-weight: bold;
-  color: var(--primary-color);
+  color: var(--accent-color);
   background: var(--bubble-bg);
   padding: 0.25rem 1rem;
   border-radius: 20px;
+}
+
+/* Counter card edit button */
+.counter-card-edit-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--gray-text);
+  font-size: 0.75rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  transition: color 0.2s ease, background 0.2s ease;
+  opacity: 0;
+}
+
+.counter-card:hover .counter-card-edit-btn {
+  opacity: 1;
+}
+
+.counter-card-edit-btn:hover {
+  color: var(--text-color);
+  background: var(--bubble-bg);
+}
+
+/* Edit controls row */
+.counter-card-edit-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.counter-edit-minus,
+.counter-edit-plus {
+  background: var(--accent-color);
+  color: var(--btn-text);
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.counter-edit-minus:hover,
+.counter-edit-plus:hover {
+  opacity: 0.8;
+  transform: scale(1.1);
+}
+
+.counter-edit-value {
+  font-size: 1.4rem;
+  font-weight: bold;
+  min-width: 28px;
+  text-align: center;
+  color: var(--text-color);
 }

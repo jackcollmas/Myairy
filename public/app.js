@@ -3377,12 +3377,87 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const card = document.createElement('div');
         card.className = 'counter-card';
+        card.dataset.date = dateStr;
+        card.dataset.count = count;
         card.innerHTML = `
+          <button class="counter-card-edit-btn" title="Edit" data-date="${dateStr}"><i class="fas fa-pen"></i></button>
           <div class="counter-card-day">${dayName}</div>
           <div class="counter-card-date">${day} ${monthName} ${currentYear}</div>
-          <div class="counter-card-count">${count}</div>
+          <div class="counter-card-count" data-count-display="${dateStr}">${count}</div>
+          <div class="counter-card-edit-controls hidden" data-edit-controls="${dateStr}">
+            <button class="counter-edit-minus" data-date="${dateStr}" title="Decrease"><i class="fas fa-minus"></i></button>
+            <span class="counter-edit-value" data-edit-value="${dateStr}">${count}</span>
+            <button class="counter-edit-plus" data-date="${dateStr}" title="Increase"><i class="fas fa-plus"></i></button>
+            <button class="counter-edit-save primary-btn" data-date="${dateStr}" style="margin-top: 0.5rem; padding: 0.25rem 0.75rem; font-size: 0.8rem;">Save</button>
+          </div>
         `;
         counterGrid.appendChild(card);
+
+        // Edit pen toggle
+        card.querySelector('.counter-card-edit-btn').addEventListener('click', () => {
+          const controls = card.querySelector(`[data-edit-controls="${dateStr}"]`);
+          const countDisplay = card.querySelector(`[data-count-display="${dateStr}"]`);
+          const editValue = card.querySelector(`[data-edit-value="${dateStr}"]`);
+          const isEditing = !controls.classList.contains('hidden');
+          if (isEditing) {
+            controls.classList.add('hidden');
+            countDisplay.classList.remove('hidden');
+          } else {
+            editValue.textContent = parseInt(countDisplay.textContent) || 0;
+            controls.classList.remove('hidden');
+            countDisplay.classList.add('hidden');
+          }
+        });
+
+        // Minus button
+        card.querySelector('.counter-edit-minus').addEventListener('click', () => {
+          const editValue = card.querySelector(`[data-edit-value="${dateStr}"]`);
+          const current = parseInt(editValue.textContent) || 0;
+          if (current > 0) editValue.textContent = current - 1;
+        });
+
+        // Plus button
+        card.querySelector('.counter-edit-plus').addEventListener('click', () => {
+          const editValue = card.querySelector(`[data-edit-value="${dateStr}"]`);
+          const current = parseInt(editValue.textContent) || 0;
+          editValue.textContent = current + 1;
+        });
+
+        // Save button
+        card.querySelector('.counter-edit-save').addEventListener('click', async () => {
+          const editValue = card.querySelector(`[data-edit-value="${dateStr}"]`);
+          const countDisplay = card.querySelector(`[data-count-display="${dateStr}"]`);
+          const controls = card.querySelector(`[data-edit-controls="${dateStr}"]`);
+          const newCount = parseInt(editValue.textContent) || 0;
+          const oldCount = parseInt(countDisplay.textContent) || 0;
+          const diff = newCount - oldCount;
+
+          const saveBtn = card.querySelector('.counter-edit-save');
+          saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+          saveBtn.disabled = true;
+
+          try {
+            if (diff !== 0) {
+              await fetch('/api/counters/increment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date: dateStr, amount: diff })
+              });
+            }
+            countDisplay.textContent = newCount;
+            controls.classList.add('hidden');
+            countDisplay.classList.remove('hidden');
+            // Update monthly total
+            const newTotal = parseInt(counterMonthlyTotal.textContent) + diff;
+            counterMonthlyTotal.textContent = Math.max(0, newTotal);
+          } catch (e) {
+            console.error('Failed to save counter:', e);
+            alert('Failed to save. Please try again.');
+          } finally {
+            saveBtn.innerHTML = 'Save';
+            saveBtn.disabled = false;
+          }
+        });
       }
     } catch (e) {
       console.error('Failed to load counters:', e);
