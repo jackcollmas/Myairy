@@ -52,7 +52,17 @@
         <button id="pre-login-send-btn" class="pre-login-send-btn" title="Queue message">
           <i class="fas fa-paper-plane"></i>
         </button>
+        
+        <!-- Relapse Counter quick add -->
+        <div class="relapse-quick-add" style="margin-top: 1rem;">
+          <p class="pre-login-hint">Counter</p>
+          <div class="relapse-counter-container">
+            <button id="relapse-add-btn" title="Add Relapse" style="background: var(--accent-color); color: var(--btn-text); border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"><i class="fas fa-plus"></i></button>
+            <span id="relapse-count-display">0</span>
+          </div>
+        </div>
       </div>
+      
       <div id="pre-login-queue" class="pre-login-queue">
         <!-- Queued messages will appear here -->
       </div>
@@ -82,6 +92,7 @@
         <button id="nav-personas" class="nav-btn"><i class="fas fa-users"></i> <span>Personas</span></button>
         <button id="nav-search" class="nav-btn"><i class="fas fa-search"></i> <span>Search</span></button>
         <button id="nav-analytics" class="nav-btn"><i class="fas fa-chart-pie"></i> <span>Analytics</span></button>
+        <button id="nav-counter" class="nav-btn"><i class="fas fa-stopwatch"></i> <span>Counter</span></button>
       </nav>
       <div class="sidebar-footer">
         <button id="lock-app-btn" class="nav-btn"><i class="fas fa-lock"></i> Lock</button>
@@ -402,6 +413,21 @@
               <!-- Insights injected here -->
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- Counter View -->
+      <section id="view-counter" class="sub-view hidden">
+        <header>
+          <h2>Relapse Counter</h2>
+          <div class="counter-monthly-stats" style="margin-left: auto; padding: 0.5rem 1rem; background: var(--bg-card); border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <span class="stat-label">This Month:</span>
+            <strong id="counter-monthly-total" style="font-size: 1.2rem; margin-left: 0.5rem; color: var(--accent-color);">0</strong>
+          </div>
+        </header>
+        
+        <div id="counter-grid" class="counter-grid">
+          <!-- Counter cards injected here -->
         </div>
       </section>
     </main>

@@ -40,6 +40,12 @@ export interface Insight {
   createdAt: string;
 }
 
+export interface CounterEntry {
+  id?: string;
+  date: string;
+  count: number;
+}
+
 const PORT = 3000;
 const PIN_CODE = process.env.PIN_CODE || '1234';
 
@@ -646,6 +652,29 @@ async function startServer() {
     } catch (err: any) {
       console.error('Groq AI Insight Error:', err);
       res.status(500).json({ error: err.message || 'Failed to generate AI insight' });
+    }
+  });
+
+  // --- COUNTERS CRUD ---
+  app.get('/api/counters', async (req, res) => {
+    try {
+      const counters = await dbService.getCounters();
+      res.json(counters);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to fetch counters' });
+    }
+  });
+
+  app.post('/api/counters/increment', async (req, res) => {
+    try {
+      const { date, amount } = req.body;
+      if (!date || amount === undefined) {
+        return res.status(400).json({ error: 'Date and amount are required' });
+      }
+      const updated = await dbService.incrementCounter(date, Number(amount));
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to increment counter' });
     }
   });
 

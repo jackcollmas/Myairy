@@ -15,12 +15,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const navPersonas = document.getElementById('nav-personas');
   const navSearch = document.getElementById('nav-search');
   const navAnalytics = document.getElementById('nav-analytics');
+  const navCounter = document.getElementById('nav-counter');
   const lockAppBtn = document.getElementById('lock-app-btn');
 
   const viewDashboard = document.getElementById('view-dashboard');
   const viewPersonas = document.getElementById('view-personas');
   const viewSearch = document.getElementById('view-search');
   const viewAnalytics = document.getElementById('view-analytics');
+  const viewCounter = document.getElementById('view-counter');
   const viewEntry = document.getElementById('view-entry');
 
   const journalsList = document.getElementById('journals-list');
@@ -152,6 +154,23 @@ document.addEventListener('DOMContentLoaded', () => {
   const activityChart = document.getElementById('activity-chart');
   const generateInsightBtn = document.getElementById('generate-insight-btn');
   const insightsList = document.getElementById('insights-list');
+
+  // Counter elements
+  const relapseAddBtn = document.getElementById('relapse-add-btn');
+  const relapseCountDisplay = document.getElementById('relapse-count-display');
+  const counterMonthlyTotal = document.getElementById('counter-monthly-total');
+  const counterGrid = document.getElementById('counter-grid');
+
+  let pendingRelapseCount = parseInt(localStorage.getItem('pendingRelapseCount') || '0', 10);
+  if (relapseCountDisplay) relapseCountDisplay.textContent = pendingRelapseCount;
+  
+  if (relapseAddBtn) {
+    relapseAddBtn.addEventListener('click', () => {
+      pendingRelapseCount++;
+      localStorage.setItem('pendingRelapseCount', pendingRelapseCount.toString());
+      if (relapseCountDisplay) relapseCountDisplay.textContent = pendingRelapseCount;
+    });
+  }
 
   // --- State ---
   let currentPersonas = [];
@@ -662,6 +681,22 @@ document.addEventListener('DOMContentLoaded', () => {
           pinInput.value = '';
           lockError.textContent = '';
           stopFloatingWords();
+          
+          if (pendingRelapseCount > 0) {
+            fetch('/api/counters/increment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                date: new Date().toISOString().split('T')[0], 
+                amount: pendingRelapseCount 
+              })
+            }).then(() => {
+              pendingRelapseCount = 0;
+              localStorage.removeItem('pendingRelapseCount');
+              if (relapseCountDisplay) relapseCountDisplay.textContent = '0';
+            }).catch(console.error);
+          }
+
           await loadDashboard();
           await getOrCreateTodayJournal();
           
@@ -770,6 +805,9 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (viewId === 'view-analytics') {
       navAnalytics.classList.add('active');
       loadAnalytics();
+    } else if (viewId === 'view-counter') {
+      navCounter.classList.add('active');
+      loadCounterView();
     }
 
     updateFab(viewId);
@@ -817,6 +855,7 @@ document.addEventListener('DOMContentLoaded', () => {
   navPersonas.addEventListener('click', () => switchView('view-personas'));
   navSearch.addEventListener('click', () => switchView('view-search'));
   navAnalytics.addEventListener('click', () => switchView('view-analytics'));
+  navCounter.addEventListener('click', () => switchView('view-counter'));
   backToDashboardBtn.addEventListener('click', () => switchView('view-dashboard'));
   
   if (toggleStarBtn) {
@@ -3301,6 +3340,53 @@ document.addEventListener('DOMContentLoaded', () => {
         generateInsightBtn.disabled = false;
       }
     });
+  }
+
+  // --- Counter Data Fetching & Rendering ---
+  async function loadCounterView() {
+    try {
+      const res = await fetch('/api/counters');
+      const counters = await res.json();
+      
+      const today = new Date();
+      const currentMonth = today.getMonth();
+      const currentYear = today.getFullYear();
+      
+      // Filter for current month
+      const currentMonthCounters = counters.filter(c => {
+        const d = new Date(c.date);
+        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+      });
+      
+      const totalMonth = currentMonthCounters.reduce((acc, curr) => acc + curr.count, 0);
+      counterMonthlyTotal.textContent = totalMonth;
+      
+      counterGrid.innerHTML = '';
+      
+      // Only render cards up to the current day
+      const currentDay = today.getDate();
+      
+      for (let day = 1; day <= currentDay; day++) {
+        const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const existing = currentMonthCounters.find(c => c.date === dateStr);
+        const count = existing ? existing.count : 0;
+        
+        const cardDate = new Date(currentYear, currentMonth, day);
+        const dayName = cardDate.toLocaleDateString('en-US', { weekday: 'long' });
+        const monthName = cardDate.toLocaleDateString('en-US', { month: 'short' });
+        
+        const card = document.createElement('div');
+        card.className = 'counter-card';
+        card.innerHTML = `
+          <div class="counter-card-day">${dayName}</div>
+          <div class="counter-card-date">${day} ${monthName} ${currentYear}</div>
+          <div class="counter-card-count">${count}</div>
+        `;
+        counterGrid.appendChild(card);
+      }
+    } catch (e) {
+      console.error('Failed to load counters:', e);
+    }
   }
 
 });

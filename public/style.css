@@ -2475,3 +2475,102 @@ select:focus, input[type="text"]:focus {
 .image-option-btn span {
   flex: 1;
 }
+
+/* Counter View Styles */
+.relapse-quick-add {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  text-align: center;
+}
+
+.relapse-counter-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.relapse-counter-container #relapse-add-btn {
+  background-color: var(--primary-color);
+  color: white;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.relapse-counter-container #relapse-add-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+}
+
+.relapse-counter-container #relapse-add-btn:active {
+  transform: scale(0.95);
+}
+
+#relapse-count-display {
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--text-color);
+  min-width: 40px;
+}
+
+.counter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+  padding: 1rem 0;
+}
+
+.counter-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 1.5rem 1rem;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  transition: transform 0.2s ease;
+}
+
+.counter-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.counter-card-day {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-color);
+  margin-bottom: 0.25rem;
+}
+
+.counter-card-date {
+  font-size: 0.85rem;
+  color: var(--gray-text);
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+}
+
+.counter-card-count {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--primary-color);
+  background: var(--bubble-bg);
+  padding: 0.25rem 1rem;
+  border-radius: 20px;
+}

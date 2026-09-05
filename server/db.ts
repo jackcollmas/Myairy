@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { MongoClient, Db } from 'mongodb';
-import { Persona, JournalEntry, Insight } from '../server.js';
+import { Persona, JournalEntry, Insight, CounterEntry } from '../server.js';
 
 const MONGODB_URI = process.env.MONGODB_URI || '';
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -17,6 +17,7 @@ interface LocalData {
   personas: Persona[];
   journals: JournalEntry[];
   insights: Insight[];
+  counters: CounterEntry[];
 }
 
 const DEFAULT_PERSONAS: Persona[] = [
@@ -118,6 +119,7 @@ class DatabaseService {
         personas: DEFAULT_PERSONAS,
         journals: DEFAULT_JOURNALS,
         insights: [],
+        counters: [],
       };
       fs.writeFileSync(JSON_FILE_PATH, JSON.stringify(initialData, null, 2), 'utf-8');
     }
@@ -132,9 +134,10 @@ class DatabaseService {
         personas: parsed.personas || DEFAULT_PERSONAS,
         journals: parsed.journals || DEFAULT_JOURNALS,
         insights: parsed.insights || [],
+        counters: parsed.counters || [],
       };
     } catch {
-      return { personas: DEFAULT_PERSONAS, journals: DEFAULT_JOURNALS, insights: [] };
+      return { personas: DEFAULT_PERSONAS, journals: DEFAULT_JOURNALS, insights: [], counters: [] };
     }
   }
 
@@ -357,6 +360,57 @@ class DatabaseService {
       data.insights.unshift(insight);
       this.writeJsonData(data);
       return insight;
+    }
+  }
+
+  // --- COUNTERS CRUD ---
+  
+  public async getCounters(): Promise<CounterEntry[]> {
+    if (this.isMongoConnected && this.db) {
+      const counters = await this.db.collection('counters').find({}).sort({ date: 1 }).toArray();
+      return counters.map((c: any) => ({
+        id: c.id || c._id.toString(),
+        date: c.date,
+        count: c.count
+      }));
+    } else {
+      const data = this.readJsonData();
+      return (data.counters || []).sort((a, b) => (a.date > b.date ? 1 : -1));
+    }
+  }
+
+  public async incrementCounter(date: string, amount: number): Promise<CounterEntry> {
+    if (this.isMongoConnected && this.db) {
+      const existing = await this.db.collection('counters').findOne({ date });
+      if (existing) {
+        await this.db.collection('counters').updateOne({ date }, { $inc: { count: amount } });
+      } else {
+        await this.db.collection('counters').insertOne({
+          id: `counter_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          date,
+          count: amount
+        });
+      }
+      const updated = await this.db.collection('counters').findOne({ date });
+      return { id: updated!.id || updated!._id.toString(), date: updated!.date, count: updated!.count };
+    } else {
+      const data = this.readJsonData();
+      if (!data.counters) data.counters = [];
+      const idx = data.counters.findIndex(c => c.date === date);
+      let result: CounterEntry;
+      if (idx !== -1) {
+        data.counters[idx].count += amount;
+        result = data.counters[idx];
+      } else {
+        result = {
+          id: `counter_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          date,
+          count: amount
+        };
+        data.counters.push(result);
+      }
+      this.writeJsonData(data);
+      return result;
     }
   }
 }
