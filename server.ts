@@ -46,8 +46,16 @@ export interface CounterEntry {
   count: number;
 }
 
-const PORT = 3000;
-const PIN_CODE = process.env.PIN_CODE || '1234';
+const PORT = 3030;
+const PIN_CODE = process.env.PIN_CODE || '123456';
+
+// Rate limiting for production PIN attempts
+interface RateLimitEntry {
+  attempts: number;
+  lockedUntil?: number;
+  firstAttempt: number;
+}
+const rateLimits = new Map<string, RateLimitEntry>();
 
 // Initialize Groq client
 const groq = new Groq({
@@ -94,14 +102,74 @@ async function startServer() {
     res.json(dbService.getStatus());
   });
 
-  // PIN Verification
+  // PIN Verification with Rate Limiting and Mode Detection
   app.post('/api/verify-pin', (req, res) => {
     const { pin } = req.body;
-    if (String(pin).trim() === String(PIN_CODE).trim()) {
-      res.json({ success: true, message: 'Unlocked successfully' });
-    } else {
-      res.status(401).json({ success: false, message: 'Invalid 4-digit PIN code' });
+    const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+    const sessionId = req.headers['x-session-id'] as string || clientIp;
+    const now = Date.now();
+    
+    // Validate PIN format (must be 6 digits)
+    if (!pin || !/^\d{6}$/.test(String(pin))) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'PIN must be exactly 6 digits' 
+      });
     }
+    
+    // Get or create rate limit entry
+    let rateLimit = rateLimits.get(sessionId);
+    if (!rateLimit) {
+      rateLimit = { attempts: 0, firstAttempt: now };
+      rateLimits.set(sessionId, rateLimit);
+    }
+    
+    // Check if locked out
+    if (rateLimit.lockedUntil && now < rateLimit.lockedUntil) {
+      const remainingSeconds = Math.ceil((rateLimit.lockedUntil - now) / 1000);
+      return res.status(429).json({ 
+        success: false, 
+        message: `Too many failed attempts. Try again in ${remainingSeconds} seconds.`,
+        lockedUntil: rateLimit.lockedUntil
+      });
+    }
+    
+    // Reset if first attempt was more than 15 minutes ago
+    if (now - rateLimit.firstAttempt > 15 * 60 * 1000) {
+      rateLimit = { attempts: 0, firstAttempt: now };
+      rateLimits.set(sessionId, rateLimit);
+    }
+    
+    // Check if it's the production PIN
+    if (String(pin).trim() === String(PIN_CODE).trim()) {
+      // SUCCESS - Production mode
+      rateLimits.delete(sessionId); // Reset attempts on success
+      return res.json({ 
+        success: true, 
+        mode: 'production',
+        message: 'Welcome back!' 
+      });
+    }
+    
+    // Not the production PIN - increment failed attempts
+    rateLimit.attempts++;
+    
+    // Lock out after 5 failed production PIN attempts
+    if (rateLimit.attempts >= 5) {
+      rateLimit.lockedUntil = now + (5 * 60 * 1000); // 5 minute lockout
+      return res.status(429).json({ 
+        success: false, 
+        message: `Too many failed attempts. Locked out for 5 minutes.`,
+        lockedUntil: rateLimit.lockedUntil
+      });
+    }
+    
+    // Any other 6-digit PIN = Demo mode (localStorage only)
+    return res.json({ 
+      success: true, 
+      mode: 'demo',
+      message: 'Demo mode - data stored locally' 
+    });
   });
 
   // AI Chat with Groq

@@ -656,10 +656,183 @@ document.addEventListener('DOMContentLoaded', () => {
   // Start immediately — lock screen is the first thing shown
   startFloatingWords();
 
+  // --- State for Auth Mode ---
+  let appMode = 'demo'; // 'production' or 'demo'
+
+  // --- LocalStorage Demo Mode Functions ---
+  const DemoStorage = {
+    getPersonas() {
+      const stored = localStorage.getItem('myairy_demo_personas');
+      return stored ? JSON.parse(stored) : [];
+    },
+    savePersonas(personas) {
+      localStorage.setItem('myairy_demo_personas', JSON.stringify(personas));
+    },
+    getJournals() {
+      const stored = localStorage.getItem('myairy_demo_journals');
+      return stored ? JSON.parse(stored) : [];
+    },
+    saveJournals(journals) {
+      localStorage.setItem('myairy_demo_journals', JSON.stringify(journals));
+    },
+    getInsights() {
+      const stored = localStorage.getItem('myairy_demo_insights');
+      return stored ? JSON.parse(stored) : [];
+    },
+    saveInsights(insights) {
+      localStorage.setItem('myairy_demo_insights', JSON.stringify(insights));
+    },
+    isInitialized() {
+      return localStorage.getItem('myairy_demo_initialized') === 'true';
+    },
+    markInitialized() {
+      localStorage.setItem('myairy_demo_initialized', 'true');
+    }
+  };
+
+  // Initialize demo data on first demo login
+  function initializeDemoData() {
+    if (DemoStorage.isInitialized()) return;
+
+    // Get demo data from external file
+    const demoData = getDemoData();
+    
+    // Save all demo data
+    DemoStorage.savePersonas(demoData.personas);
+    DemoStorage.saveJournals(demoData.journals);
+    DemoStorage.saveInsights(demoData.insights);
+    DemoStorage.markInitialized();
+  }
+
+  // --- API Wrapper for Demo/Production Mode ---
+  async function apiCall(method, endpoint, body = null) {
+    // In demo mode, handle locally
+    if (appMode === 'demo') {
+      return handleDemoAPICall(method, endpoint, body);
+    }
+    
+    // In production mode, call actual API
+    const options = {
+      method,
+      headers: { 'Content-Type': 'application/json' }
+    };
+    if (body) {
+      options.body = JSON.stringify(body);
+    }
+    const res = await fetch(endpoint, options);
+    if (!res.ok && res.status !== 404) {
+      throw new Error(`API call failed: ${res.statusText}`);
+    }
+    return res.json();
+  }
+
+  function handleDemoAPICall(method, endpoint, body) {
+    // Parse endpoint
+    const parts = endpoint.split('/').filter(p => p);
+    const resource = parts[1]; // 'personas', 'journals', etc
+    const id = parts[2];
+
+    // Handle different resources
+    if (resource === 'personas') {
+      const personas = DemoStorage.getPersonas();
+      
+      if (method === 'GET' && !id) {
+        return Promise.resolve(personas);
+      }
+      if (method === 'POST') {
+        const newPersona = { ...body, id: `persona_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`, createdAt: new Date().toISOString() };
+        personas.push(newPersona);
+        DemoStorage.savePersonas(personas);
+        return Promise.resolve(newPersona);
+      }
+      if (method === 'PUT' && id) {
+        const index = personas.findIndex(p => p.id === id);
+        if (index !== -1) {
+          personas[index] = { ...personas[index], ...body };
+          DemoStorage.savePersonas(personas);
+          return Promise.resolve(personas[index]);
+        }
+      }
+      if (method === 'DELETE' && id) {
+        const filtered = personas.filter(p => p.id !== id);
+        DemoStorage.savePersonas(filtered);
+        return Promise.resolve({ success: true });
+      }
+    }
+
+    if (resource === 'journals') {
+      const journals = DemoStorage.getJournals();
+      
+      if (method === 'GET' && !id) {
+        return Promise.resolve(journals);
+      }
+      if (method === 'GET' && id) {
+        const journal = journals.find(j => j.id === id);
+        return Promise.resolve(journal || null);
+      }
+      if (method === 'POST') {
+        const now = new Date().toISOString();
+        const newJournal = { 
+          ...body, 
+          id: `journal_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          createdAt: now,
+          updatedAt: now,
+          messages: body.messages || []
+        };
+        journals.push(newJournal);
+        DemoStorage.saveJournals(journals);
+        return Promise.resolve(newJournal);
+      }
+      if (method === 'PUT' && id) {
+        const index = journals.findIndex(j => j.id === id);
+        if (index !== -1) {
+          journals[index] = { ...journals[index], ...body, updatedAt: new Date().toISOString() };
+          DemoStorage.saveJournals(journals);
+          return Promise.resolve(journals[index]);
+        }
+      }
+      if (method === 'PATCH' && id) {
+        const index = journals.findIndex(j => j.id === id);
+        if (index !== -1) {
+          journals[index] = { ...journals[index], ...body, updatedAt: new Date().toISOString() };
+          DemoStorage.saveJournals(journals);
+          return Promise.resolve(journals[index]);
+        }
+      }
+      if (method === 'DELETE' && id) {
+        const filtered = journals.filter(j => j.id !== id);
+        DemoStorage.saveJournals(filtered);
+        return Promise.resolve({ success: true });
+      }
+    }
+
+    if (resource === 'insights') {
+      const insights = DemoStorage.getInsights();
+      
+      if (method === 'GET') {
+        return Promise.resolve(insights);
+      }
+      if (method === 'POST') {
+        // For demo mode, just create a placeholder insight
+        const newInsight = {
+          id: `insight_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          content: "This is a demo insight. In production mode, this would be generated by AI based on your journal entries.",
+          createdAt: new Date().toISOString()
+        };
+        insights.push(newInsight);
+        DemoStorage.saveInsights(insights);
+        return Promise.resolve(newInsight);
+      }
+    }
+
+    // Default fallback
+    return Promise.resolve({ success: true });
+  }
+
   // --- Lock Screen Logic ---
   pinInput.addEventListener('input', async (e) => {
     const pin = e.target.value;
-    if (pin.length === 4) {
+    if (pin.length === 6) {
       // Show loading spinner
       pinLoading.classList.remove('hidden');
       pinInput.disabled = true;
@@ -674,6 +847,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await res.json();
         
         if (data.success) {
+          // Store the mode
+          appMode = data.mode || 'demo';
+          localStorage.setItem('myairy_app_mode', appMode);
+          
+          // Initialize demo data if in demo mode
+          if (appMode === 'demo') {
+            initializeDemoData();
+          }
+          
           lockScreen.classList.remove('active');
           lockScreen.classList.add('hidden');
           appScreen.classList.remove('hidden');
@@ -826,8 +1008,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-      const res = await fetch('/api/journals');
-      const journals = await res.json();
+      const journals = await apiCall('GET', '/api/journals');
       
       if (journals.length === 0) {
         alert('No journals found. Create a journal from the Dashboard first!');
@@ -908,19 +1089,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- Data Fetching & Rendering ---
   async function loadDashboard() {
     try {
-      const [journalsRes, personasRes] = await Promise.all([
-        fetch('/api/journals'),
-        fetch('/api/personas')
+      const [currentJournals_response, currentPersonas_response] = await Promise.all([
+        apiCall('GET', '/api/journals'),
+        apiCall('GET', '/api/personas')
       ]);
-      currentJournals = await journalsRes.json();
-      currentPersonas = await personasRes.json();
+      currentJournals = currentJournals_response;
+      currentPersonas = currentPersonas_response;
       
       // Ensure we have an active sender
       if (currentPersonas.length > 0 && !activeSenderId) {
         activeSenderId = currentPersonas[0].id;
       }
       
-      // Save personas to localStorage
+      // Save personas to localStorage (for pre-login mentions)
       savePersonasToLocalStorage(currentPersonas);
       
       renderJournals();
@@ -938,12 +1119,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     try {
-      const res = await fetch('/api/journals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: todayTitle, date: today })
-      });
-      const newJournal = await res.json();
+      const newJournal = await apiCall('POST', '/api/journals', { title: todayTitle, date: today });
       currentJournals.unshift(newJournal);
       renderJournals();
       openJournal(newJournal.id);
@@ -954,8 +1130,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadPersonas() {
     try {
-      const res = await fetch('/api/personas');
-      currentPersonas = await res.json();
+      currentPersonas = await apiCall('GET', '/api/personas');
       
       // Save personas to localStorage whenever they're loaded
       savePersonasToLocalStorage(currentPersonas);
@@ -1419,8 +1594,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- Journal Entry View ---
   async function openJournal(id) {
     try {
-      const res = await fetch(`/api/journals/${id}`);
-      const journal = await res.json();
+      const journal = await apiCall('GET', `/api/journals/${id}`);
       activeJournalId = id;
 
       entryTitle.textContent = journal.title;
@@ -2229,29 +2403,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       // Now fetch and update backend in background
-      const jRes = await fetch(`/api/journals/${activeJournalId}`);
-      const journal = await jRes.json();
+      const journal = await apiCall('GET', `/api/journals/${activeJournalId}`);
       
       journal.messages.push(newMessage);
 
-      const updateRes = await fetch(`/api/journals/${activeJournalId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(journal)
-      });
-
-      if (!updateRes.ok) {
-        // If backend fails, remove the optimistic message and restore input
-        if (messageDiv) messageDiv.remove();
-        messageInput.value = savedInput;
-        uploadedImageUrls = savedImages;
-        replyingToMessage = savedReply;
-        console.error('Failed to send message to server');
-        alert('Failed to send message. Please try again.');
-      } else {
-        // Update cache with new message
-        currentJournalMessages.push(newMessage);
-      }
+      const updatedJournal = await apiCall('PUT', `/api/journals/${activeJournalId}`, journal);
+      
+      // Update cache with new message
+      currentJournalMessages.push(newMessage);
     } catch (e) {
       // If error occurs, remove optimistic message and restore input
       if (messageDiv) messageDiv.remove();
@@ -2484,12 +2643,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const color = document.getElementById('new-p-color').value;
       if (!name) return;
       try {
-        const res = await fetch('/api/personas', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, color: color, avatarIcon: icon })
+        const newPersona = await apiCall('POST', '/api/personas', { 
+          name, 
+          color: color, 
+          avatarIcon: icon 
         });
-        const newPersona = await res.json();
         
         // Add to currentPersonas and save to localStorage
         currentPersonas.push(newPersona);
@@ -2536,29 +2694,22 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!name) return;
 
       try {
-        const res = await fetch(`/api/personas/${personaId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, avatarIcon: icon, color })
+        const updatedPersona = await apiCall('PUT', `/api/personas/${personaId}`, { 
+          name, 
+          avatarIcon: icon, 
+          color 
         });
 
-        if (res.ok) {
-          hideModal();
-          
-          // Update currentPersonas and save to localStorage
-          const updatedPersona = currentPersonas.find(p => p.id === personaId);
-          if (updatedPersona) {
-            updatedPersona.name = name;
-            updatedPersona.avatarIcon = icon;
-            updatedPersona.color = color;
-            savePersonasToLocalStorage(currentPersonas);
-          }
-          
-          loadPersonas();
-        } else {
-          const error = await res.json();
-          alert(`Failed to update persona: ${error.error || 'Unknown error'}`);
+        hideModal();
+        
+        // Update currentPersonas and save to localStorage
+        const personaIndex = currentPersonas.findIndex(p => p.id === personaId);
+        if (personaIndex !== -1) {
+          currentPersonas[personaIndex] = { ...currentPersonas[personaIndex], name, avatarIcon: icon, color };
+          savePersonasToLocalStorage(currentPersonas);
         }
+        
+        loadPersonas();
       } catch (e) {
         console.error('Failed to update persona:', e);
         alert('Failed to update persona. Please try again.');
@@ -2584,20 +2735,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cancel-delete').addEventListener('click', hideModal);
     document.getElementById('confirm-delete').addEventListener('click', async () => {
       try {
-        const res = await fetch(`/api/personas/${personaId}`, {
-          method: 'DELETE'
-        });
+        await apiCall('DELETE', `/api/personas/${personaId}`);
 
-        if (res.ok) {
-          hideModal();
-          loadPersonas();
-          // Refresh dashboard in case persona was selected
-          if (viewDashboard.classList.contains('active')) {
-            loadDashboard();
-          }
-        } else {
-          const error = await res.json();
-          alert(`Failed to delete persona: ${error.error || 'Unknown error'}`);
+        hideModal();
+        loadPersonas();
+        // Refresh dashboard in case persona was selected
+        if (viewDashboard.classList.contains('active')) {
+          loadDashboard();
         }
       } catch (e) {
         console.error('Failed to delete persona:', e);
@@ -2967,15 +3111,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadAnalytics() {
     try {
-      const [journalsRes, personasRes, insightsRes] = await Promise.all([
-        fetch('/api/journals'),
-        fetch('/api/personas'),
-        fetch('/api/insights')
+      const [journals, personas, insights] = await Promise.all([
+        apiCall('GET', '/api/journals'),
+        apiCall('GET', '/api/personas'),
+        apiCall('GET', '/api/insights')
       ]);
-      
-      const journals = await journalsRes.json();
-      const personas = await personasRes.json();
-      const insights = await insightsRes.json();
       
       calculateStats(journals, personas);
       renderInsights(insights);

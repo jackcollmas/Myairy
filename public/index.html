@@ -33,9 +33,9 @@
     <div id="floating-words-container"></div>
     <div class="lock-container">
       <h1>Myairy</h1>
-      <p>Enter your PIN to continue</p>
+      <p>Enter your PIN(123456) to continue</p>
       <div class="pin-input-wrapper">
-        <input type="password" id="pin-input" maxlength="4" placeholder="••••" inputmode="numeric" pattern="[0-9]*">
+        <input type="password" id="pin-input" maxlength="6" placeholder="••••••" inputmode="numeric" pattern="[0-9]*">
         <div id="pin-loading" class="pin-loading hidden">
           <div class="spinner"></div>
         </div>
@@ -451,6 +451,7 @@
     </div>
   </div>
 
+  <script src="demo-data.js"></script>
   <script src="app.js"></script>
   
   <!-- Service Worker Registration -->
