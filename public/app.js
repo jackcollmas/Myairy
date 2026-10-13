@@ -3482,39 +3482,74 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // --- Counter Data Fetching & Rendering ---
+  // --- Predefined Mock Data & Counter Rendering ---
+  // Predefined mock numbers for days of the month (some 0, some up to 10, etc.)
+  const MOCK_MONTHLY_PATTERN = [
+    0, 2, 0, 5, 1, 0, 8, 3, 0, 10, 
+    4, 0, 6, 2, 0, 7, 1, 0, 9, 3, 
+    0, 4, 1, 0, 5, 2, 0, 8, 0, 3, 1
+  ];
+
+  function getMockCounterData(year, month) {
+    const storageKey = `mock_counters_${year}_${month}`;
+    let saved = null;
+    try {
+      saved = JSON.parse(localStorage.getItem(storageKey));
+    } catch (e) {
+      saved = null;
+    }
+
+    if (!saved || typeof saved !== 'object') {
+      saved = {};
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        // Pattern value for day (day 1 -> index 0)
+        saved[dateStr] = MOCK_MONTHLY_PATTERN[(day - 1) % MOCK_MONTHLY_PATTERN.length];
+      }
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(saved));
+      } catch (e) {}
+    }
+    return saved;
+  }
+
+  function saveMockCounterData(year, month, data) {
+    const storageKey = `mock_counters_${year}_${month}`;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(data));
+    } catch (e) {}
+  }
+
   async function loadCounterView() {
     try {
-      const res = await fetch('/api/counters');
-      const counters = await res.json();
-      
       const today = new Date();
       const currentMonth = today.getMonth();
       const currentYear = today.getFullYear();
-      
-      // Filter for current month
-      const currentMonthCounters = counters.filter(c => {
-        const d = new Date(c.date);
-        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-      });
-      
-      const totalMonth = currentMonthCounters.reduce((acc, curr) => acc + curr.count, 0);
-      counterMonthlyTotal.textContent = totalMonth;
-      
-      counterGrid.innerHTML = '';
-      
-      // Only render cards up to the current day
       const currentDay = today.getDate();
-      
+
+      // Retrieve predefined mock data (persisted locally so edits are maintained)
+      const mockData = getMockCounterData(currentYear, currentMonth);
+
+      // Calculate total for cards displayed up to the current day
+      let totalMonth = 0;
       for (let day = 1; day <= currentDay; day++) {
         const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const existing = currentMonthCounters.find(c => c.date === dateStr);
-        const count = existing ? existing.count : 0;
-        
+        totalMonth += (mockData[dateStr] !== undefined ? mockData[dateStr] : 0);
+      }
+      counterMonthlyTotal.textContent = totalMonth;
+
+      counterGrid.innerHTML = '';
+
+      // Render cards only up to the current day
+      for (let day = 1; day <= currentDay; day++) {
+        const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const count = mockData[dateStr] !== undefined ? mockData[dateStr] : 0;
+
         const cardDate = new Date(currentYear, currentMonth, day);
         const dayName = cardDate.toLocaleDateString('en-US', { weekday: 'long' });
         const monthName = cardDate.toLocaleDateString('en-US', { month: 'short' });
-        
+
         const card = document.createElement('div');
         card.className = 'counter-card';
         card.dataset.date = dateStr;
@@ -3563,8 +3598,8 @@ document.addEventListener('DOMContentLoaded', () => {
           editValue.textContent = current + 1;
         });
 
-        // Save button
-        card.querySelector('.counter-edit-save').addEventListener('click', async () => {
+        // Save button (updates local mock data without hitting database)
+        card.querySelector('.counter-edit-save').addEventListener('click', () => {
           const editValue = card.querySelector(`[data-edit-value="${dateStr}"]`);
           const countDisplay = card.querySelector(`[data-count-display="${dateStr}"]`);
           const controls = card.querySelector(`[data-edit-controls="${dateStr}"]`);
@@ -3572,31 +3607,17 @@ document.addEventListener('DOMContentLoaded', () => {
           const oldCount = parseInt(countDisplay.textContent) || 0;
           const diff = newCount - oldCount;
 
-          const saveBtn = card.querySelector('.counter-edit-save');
-          saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-          saveBtn.disabled = true;
+          // Update state and localStorage
+          mockData[dateStr] = newCount;
+          saveMockCounterData(currentYear, currentMonth, mockData);
 
-          try {
-            if (diff !== 0) {
-              await fetch('/api/counters/increment', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date: dateStr, amount: diff })
-              });
-            }
-            countDisplay.textContent = newCount;
-            controls.classList.add('hidden');
-            countDisplay.classList.remove('hidden');
-            // Update monthly total
-            const newTotal = parseInt(counterMonthlyTotal.textContent) + diff;
-            counterMonthlyTotal.textContent = Math.max(0, newTotal);
-          } catch (e) {
-            console.error('Failed to save counter:', e);
-            alert('Failed to save. Please try again.');
-          } finally {
-            saveBtn.innerHTML = 'Save';
-            saveBtn.disabled = false;
-          }
+          countDisplay.textContent = newCount;
+          controls.classList.add('hidden');
+          countDisplay.classList.remove('hidden');
+
+          // Update monthly total
+          const newTotal = parseInt(counterMonthlyTotal.textContent) + diff;
+          counterMonthlyTotal.textContent = Math.max(0, newTotal);
         });
       }
     } catch (e) {
